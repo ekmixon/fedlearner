@@ -27,17 +27,17 @@ class ExampleValidator(object):
 
     def validate_example(self, tf_example_item):
         assert isinstance(tf_example_item, TfExampleItem), \
-            "tf_example_item should be a instance of TfExampleItem"
+                "tf_example_item should be a instance of TfExampleItem"
 
         if tf_example_item.example is None:
-            return False, "Failed to parse tf.Example from {}"\
-                    .format(tf_example_item.record)
+            return False, f"Failed to parse tf.Example from {tf_example_item.record}"
         if tf_example_item.example_id == InvalidExampleId:
-            return False, "Failed to parse example id parse from {}"\
-                    .format(tf_example_item.record)
+            return False, f"Failed to parse example id parse from {tf_example_item.record}"
         if self._check_event_time and \
-                tf_example_item.event_time == InvalidEventTime:
-            return False, "Failed to parse event_time of example_id {} "\
-                    "parse from {}".format(tf_example_item.example_id,
-                                           tf_example_item.record)
+                    tf_example_item.event_time == InvalidEventTime:
+            return (
+                False,
+                f"Failed to parse event_time of example_id {tf_example_item.example_id} parse from {tf_example_item.record}",
+            )
+
         return True, ''

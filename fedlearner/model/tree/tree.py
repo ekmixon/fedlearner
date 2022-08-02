@@ -74,9 +74,10 @@ def _from_ciphertext(public_key, ciphertext):
 def _encrypt_and_send_numbers(bridge, name, public_key, numbers):
     num_parts = (len(numbers) + MAX_PARTITION_SIZE - 1)//MAX_PARTITION_SIZE
     bridge.send_proto(
-        '%s_partition_info'%name,
-        tree_pb2.PartitionInfo(num_partitions=num_parts)
+        f'{name}_partition_info',
+        tree_pb2.PartitionInfo(num_partitions=num_parts),
     )
+
     for i in range(num_parts):
         part = numbers[i*MAX_PARTITION_SIZE:(i+1)*MAX_PARTITION_SIZE]
         msg = tree_pb2.EncryptedNumbers()
@@ -93,8 +94,11 @@ def _raw_encrypt_numbers(args):
 
 def _raw_encrypt_and_send_numbers(bridge, name, public_key, numbers, pool=None):
     num_parts = (len(numbers) + MAX_PARTITION_SIZE - 1) // MAX_PARTITION_SIZE
-    bridge.send_proto('%s_partition_info' % name,
-                      tree_pb2.PartitionInfo(num_partitions=num_parts))
+    bridge.send_proto(
+        f'{name}_partition_info',
+        tree_pb2.PartitionInfo(num_partitions=num_parts),
+    )
+
     if not pool:
         for part_id in range(num_parts):
             part = numbers[part_id * MAX_PARTITION_SIZE:
@@ -119,7 +123,7 @@ def _raw_encrypt_and_send_numbers(bridge, name, public_key, numbers, pool=None):
 
 def _receive_encrypted_numbers(bridge, name, public_key):
     part_info = tree_pb2.PartitionInfo()
-    bridge.receive_proto('%s_partition_info'%name).Unpack(part_info)
+    bridge.receive_proto(f'{name}_partition_info').Unpack(part_info)
     ret = []
     for i in range(part_info.num_partitions):
         msg = tree_pb2.EncryptedNumbers()
@@ -130,9 +134,7 @@ def _receive_encrypted_numbers(bridge, name, public_key):
 def _get_dtype_for_max_value(max_value):
     if max_value < np.iinfo(np.int8).max:
         return np.int8
-    if max_value < np.iinfo(np.int16).max:
-        return np.int16
-    return np.int32
+    return np.int16 if max_value < np.iinfo(np.int16).max else np.int32
 
 
 class BinnedFeatures(object):
@@ -307,7 +309,7 @@ class BaseGrower(object):
         self._labels = labels
         self._num_samples = binned.features.shape[0]
         self._is_cat_feature = \
-            [False] * binned.num_features + [True] * binned.num_cat_features
+                [False] * binned.num_features + [True] * binned.num_cat_features
         self._grad = grad
         self._hess = hess
         self._grow_policy = grow_policy
@@ -315,13 +317,13 @@ class BaseGrower(object):
         if grow_policy == 'depthwise':
             self._split_candidates = queue.Queue()
             assert max_depth is not None, \
-                "max_depth must be set when grow_policy is depthwise"
+                    "max_depth must be set when grow_policy is depthwise"
             self._max_depth = max_depth
             self._max_leaves = 2**max_depth
         else:
             self._split_candidates = queue.PriorityQueue()
             assert max_leaves, \
-                "max_leaves must be set when grow_policy is lossguided"
+                    "max_leaves must be set when grow_policy is lossguided"
             self._max_leaves = max_leaves
             self._max_depth = max_depth if max_depth is not None else 2**31
 
@@ -359,10 +361,7 @@ class BaseGrower(object):
         entropy = 0.0
         for _, value in labels_counter.items():
             label_freq = value / total
-            if label_freq == 0:
-                entropy += 0
-            else:
-                entropy += -label_freq*math.log(label_freq)
+            entropy += 0 if label_freq == 0 else -label_freq*math.log(label_freq)
             gini += label_freq*(1-label_freq)
         node.gini = gini
         node.entropy = entropy
@@ -384,12 +383,12 @@ class BaseGrower(object):
             node.NI = 0
             return
         IG = node.entropy - \
-            node_left_len / node_len * left_child.entropy - \
-            node_right_len / node_len * right_child.entropy
+                node_left_len / node_len * left_child.entropy - \
+                node_right_len / node_len * right_child.entropy
 
         NI = node_len / self._num_samples * node.gini - \
-            node_right_len / self._num_samples * right_child.gini - \
-            node_left_len / self._num_samples * left_child.gini
+                node_right_len / self._num_samples * right_child.gini - \
+                node_left_len / self._num_samples * left_child.gini
         node.IG = IG
         node.NI = NI
 
@@ -422,8 +421,8 @@ class BaseGrower(object):
         sum_g = left_g + right_g
         sum_h = left_h + right_h
         gain = left_g*left_g/(left_h + lam) + \
-            right_g*right_g/(right_h + lam) - \
-            sum_g*sum_g/(sum_h + lam)
+                right_g*right_g/(right_h + lam) - \
+                sum_g*sum_g/(sum_h + lam)
         if gain > split_info.gain:
             split_info.gain = gain
             split_info.feature_id = feature_id
@@ -533,7 +532,7 @@ class BaseGrower(object):
         self._set_node_partition(node, split_info)
 
         self._compute_IG_NI(node, \
-            left_child, right_child)
+                left_child, right_child)
         self._feature_importance[split_info.feature_id] += node.NI
 
         return left_child, right_child, split_info
@@ -693,7 +692,7 @@ class LeaderGrower(BaseGrower):
                 'hess_hists')
         else:
             follower_grad_hists, follower_hess_hists = \
-                self._receive_and_decrypt_packed_histogram('gradhess_hists')
+                    self._receive_and_decrypt_packed_histogram('gradhess_hists')
 
         node.grad_hists = grad_hists + follower_grad_hists
         node.hess_hists = hess_hists + follower_hess_hists
@@ -718,7 +717,7 @@ class LeaderGrower(BaseGrower):
         if split_info.feature_id < self._binned.num_all_features:
             self._set_node_partition(node, split_info)
             self._compute_IG_NI(node, \
-                left_child, right_child)
+                    left_child, right_child)
             self._feature_importance[split_info.feature_id] += node.NI
             self._bridge.send_proto(
                 'split_info',
@@ -738,12 +737,12 @@ class LeaderGrower(BaseGrower):
 
             follower_split_info = tree_pb2.SplitInfo()
             self._bridge.receive_proto('follower_split_info') \
-                .Unpack(follower_split_info)
+                    .Unpack(follower_split_info)
             left_child.sample_ids = list(follower_split_info.left_samples)
             right_child.sample_ids = list(follower_split_info.right_samples)
 
             self._compute_IG_NI(node, \
-                left_child, right_child)
+                    left_child, right_child)
             self._feature_importance[split_info.feature_id] += node.NI
             split_info.feature_id = -1
 
@@ -839,8 +838,7 @@ class FollowerGrower(BaseGrower):
         return left_child, right_child, split_info
 
 def _vectorize_tree(tree):
-    vec = {}
-    vec['is_owner'] = np.asarray([n.is_owner for n in tree.nodes])
+    vec = {'is_owner': np.asarray([n.is_owner for n in tree.nodes])}
     vec['feature_id'] = np.asarray([n.feature_id for n in tree.nodes])
     vec['is_cat_feature'] = np.asarray([n.is_cat_feature for n in tree.nodes])
     vec['threshold'] = np.asarray([n.threshold for n in tree.nodes])
@@ -912,7 +910,7 @@ class BoostingTreeEnsamble(object):
         elif loss_type == 'mse':
             self._loss = MSELoss()
         else:
-            raise ValueError("Invalid loss type%s"%loss_type)
+            raise ValueError(f"Invalid loss type{loss_type}")
         self._trees = []
         self._feature_names = None
         self._cat_feature_names = None
@@ -940,18 +938,10 @@ class BoostingTreeEnsamble(object):
         if self._role == 'local':
             return self._loss.metrics(pred, label)
 
-        if label is not None:
-            metrics = self._loss.metrics(pred, label)
-        else:
-            metrics = {}
-
+        metrics = self._loss.metrics(pred, label) if label is not None else {}
         self._bridge.start()
         if self._role == 'leader':
-            if self._send_metrics_to_follower:
-                send_metrics = metrics
-            else:
-                send_metrics = {}
-
+            send_metrics = metrics if self._send_metrics_to_follower else {}
             msg = tf.train.Features()
             for k, v in send_metrics.items():
                 msg.feature[k].float_list.value.append(v)
@@ -959,9 +949,7 @@ class BoostingTreeEnsamble(object):
         else:
             msg = tf.train.Features()
             self._bridge.receive_proto('metrics').Unpack(msg)
-            metrics = {}
-            for key in msg.feature:
-                metrics[key] = msg.feature[key].float_list.value[0]
+            metrics = {key: msg.feature[key].float_list.value[0] for key in msg.feature}
         self._bridge.commit()
 
         return metrics
@@ -1001,23 +989,23 @@ class BoostingTreeEnsamble(object):
             status = common_pb2.Status()
             self._bridge.receive_proto('status').Unpack(status)
             assert status.code == common_pb2.STATUS_SUCCESS, \
-                "Parameters mismatch between leader and follower: \n%s" \
-                %status.error_message
+                    "Parameters mismatch between leader and follower: \n%s" \
+                    %status.error_message
         else:
             msg = tree_pb2.VerifyParams()
             self._bridge.receive_proto('verify').Unpack(msg)
             def check(name, left, right):
                 if left == right or \
-                        (isinstance(left, float) and np.isclose(left, right)):
+                            (isinstance(left, float) and np.isclose(left, right)):
                     return ''
                 return 'Error:%s mismatch between leader and follower: ' \
-                        '%s vs %s\n'%(name, left, right)
+                            '%s vs %s\n'%(name, left, right)
 
             err_msg = ''
             if example_ids and msg.example_ids and \
-                    list(example_ids) != list(msg.example_ids):
+                        list(example_ids) != list(msg.example_ids):
                 err_msg += "Error: example_ids mismatch between leader and " \
-                           "follower\n"
+                               "follower\n"
                 if len(example_ids) != len(msg.example_ids):
                     err_msg += "Error: example_ids length: %d vs %d"%(
                         len(example_ids), len(msg.example_ids))
@@ -1026,7 +1014,7 @@ class BoostingTreeEnsamble(object):
                                         zip(example_ids, msg.example_ids)):
                         if a != b:
                             err_msg += "Error: first mismatching example at " \
-                                       "%d: %s vs %s"%(i, a, b)
+                                           "%d: %s vs %s"%(i, a, b)
 
             err_msg += check(
                 'num_trees', msg.num_trees, len(self._trees))
@@ -1100,13 +1088,12 @@ class BoostingTreeEnsamble(object):
         return filename
 
     def load_last_checkpoint(self, path):
-        files = tf.io.gfile.listdir(path)
-        if files:
+        if files := tf.io.gfile.listdir(path):
             last_checkpoint = os.path.join(
                 path, sorted(files)[-1])
             logging.info(
                 "Restoring from previously saved checkpoint %s", \
-                last_checkpoint)
+                    last_checkpoint)
             self.load_saved_model(last_checkpoint)
             return True
         return False
@@ -1120,10 +1107,10 @@ class BoostingTreeEnsamble(object):
                       feature_names=None, cat_feature_names=None):
         if feature_names and self._feature_names:
             assert feature_names == self._feature_names, \
-                "Predict data's feature names does not match loaded model"
+                    "Predict data's feature names does not match loaded model"
         if cat_feature_names and self._cat_feature_names:
             assert cat_feature_names == self._cat_feature_names, \
-                "Predict data's feature names does not match loaded model"
+                    "Predict data's feature names does not match loaded model"
 
         if features is not None and cat_features is None:
             cat_features = np.zeros((features.shape[0], 0), dtype=np.int32)
@@ -1173,9 +1160,7 @@ class BoostingTreeEnsamble(object):
 
             raw_prediction += vec_tree['weight'][assignment]
 
-        if get_raw_score:
-            return raw_prediction
-        return self._loss.predict(raw_prediction)
+        return raw_prediction if get_raw_score else self._loss.predict(raw_prediction)
 
     def _batch_predict_one_side_follower(self, features, cat_features,
                                          get_raw_score):
@@ -1203,9 +1188,7 @@ class BoostingTreeEnsamble(object):
         raw_prediction = self._bridge.receive('raw_prediction')
         self._bridge.commit()
 
-        if get_raw_score:
-            return raw_prediction
-        return self._loss.predict(raw_prediction)
+        return raw_prediction if get_raw_score else self._loss.predict(raw_prediction)
 
     def _batch_predict_one_side_leader(self, get_raw_score):
         raw_prediction = None
@@ -1213,7 +1196,7 @@ class BoostingTreeEnsamble(object):
             logging.debug("Running prediction for tree %d", idx)
             vec_tree = _vectorize_tree(tree)
             assert not vec_tree['is_owner'].sum(), \
-                "Model cannot predict with no data"
+                    "Model cannot predict with no data"
 
             self._bridge.start()
             assignment = self._bridge.receive('follower_assignment_%d'%idx)
@@ -1229,9 +1212,7 @@ class BoostingTreeEnsamble(object):
             raw_prediction*self._send_scores_to_follower)
         self._bridge.commit()
 
-        if get_raw_score:
-            return raw_prediction
-        return self._loss.predict(raw_prediction)
+        return raw_prediction if get_raw_score else self._loss.predict(raw_prediction)
 
 
     def _batch_predict_two_side(self, features, cat_features, get_raw_score):
@@ -1268,17 +1249,17 @@ class BoostingTreeEnsamble(object):
             raw_prediction = self._bridge.receive('raw_prediction')
         self._bridge.commit()
 
-        if get_raw_score:
-            return raw_prediction
-        return self._loss.predict(raw_prediction)
+        return raw_prediction if get_raw_score else self._loss.predict(raw_prediction)
 
     def _write_training_log(self, filename, header, metrics, pred):
         if not tf.io.gfile.exists(os.path.dirname(filename)):
             tf.io.gfile.makedirs(os.path.dirname(filename))
-        if not tf.io.gfile.exists(filename):
-            fout = tf.io.gfile.GFile(filename, 'w')
-        else:
-            fout = tf.io.gfile.GFile(filename, 'a')
+        fout = (
+            tf.io.gfile.GFile(filename, 'a')
+            if tf.io.gfile.exists(filename)
+            else tf.io.gfile.GFile(filename, 'w')
+        )
+
         fout.write(header + '\n')
         fout.write(str(metrics) + '\n')
         fout.write(','.join([str(i) for i in pred]) + '\n')
@@ -1325,10 +1306,10 @@ class BoostingTreeEnsamble(object):
             # feature importance already loaded
             if feature_names and self._feature_names:
                 assert feature_names == self._feature_names, \
-                    "Training data's feature does not match loaded model"
+                        "Training data's feature does not match loaded model"
             if cat_feature_names and self._cat_feature_names:
                 assert cat_feature_names == self._cat_feature_names, \
-                    "Training data's feature does not match loaded model"
+                        "Training data's feature does not match loaded model"
             sum_prediction = self.batch_predict(features, get_raw_score=True)
         else:
             self._feature_names = feature_names
@@ -1362,15 +1343,15 @@ class BoostingTreeEnsamble(object):
             else:
                 # update feature_importance
                 self._feature_importance = (self._feature_importance*num_iter+ \
-                    np.asarray(tree.feature_importance))/len(self._trees)
+                        np.asarray(tree.feature_importance))/len(self._trees)
 
             logging.info(
                 "ensemble feature importance for round %d, " \
-                "feature importance(>0) is %s, " \
-                "feature indices(>0) is %s ", \
-                num_iter, \
-                self._feature_importance[self._feature_importance > 0], \
-                np.nonzero(self._feature_importance))
+                    "feature importance(>0) is %s, " \
+                    "feature indices(>0) is %s ", \
+                    num_iter, \
+                    self._feature_importance[self._feature_importance > 0], \
+                    np.nonzero(self._feature_importance))
 
             # save check point
             if checkpoint_path is not None:
@@ -1378,10 +1359,7 @@ class BoostingTreeEnsamble(object):
 
             # save output
             pred = self._loss.predict(sum_prediction)
-            if labels is not None:
-                metrics = self._loss.metrics(pred, labels)
-            else:
-                metrics = {}
+            metrics = self._loss.metrics(pred, labels) if labels is not None else {}
             if output_path is not None:
                 self._write_training_log(
                     output_path, 'train_%d'%num_iter, metrics, pred)

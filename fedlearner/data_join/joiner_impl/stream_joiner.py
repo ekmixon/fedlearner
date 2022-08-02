@@ -41,15 +41,13 @@ class _CmpCtnt(object):
             self._example_id == other._example_id
 
     def __str__(self):
-        return "%s:%s"%(self._example_id, self._event_time)
+        return f"{self._example_id}:{self._event_time}"
 
 
 class _JoinWindow(object):
     def __init__(self, pt_rate, qt_rate):
-        assert 0.0 <= pt_rate <= 1.0, \
-            "pt_rate {} should in [0.0, 1.0]".format(pt_rate)
-        assert 0.0 <= qt_rate <= 1.0, \
-            "qt_rate {} should in [0.0, 1.0]".format(qt_rate)
+        assert 0.0 <= pt_rate <= 1.0, f"pt_rate {pt_rate} should in [0.0, 1.0]"
+        assert 0.0 <= qt_rate <= 1.0, f"qt_rate {qt_rate} should in [0.0, 1.0]"
         self._buffer = []
         self._cmp_ctnt = []
         self._cmp_ctnt_sorted = True
@@ -129,7 +127,7 @@ class StreamExampleJoiner(ExampleJoiner):
         self._fill_leader_enough = False
 
         self._enable_negative_example_generator = \
-                example_joiner_options.enable_negative_example_generator
+                    example_joiner_options.enable_negative_example_generator
         if self._enable_negative_example_generator:
             sf = example_joiner_options.negative_sampling_rate
             fe = example_joiner_options.negative_sampling_filter_expr
@@ -145,15 +143,15 @@ class StreamExampleJoiner(ExampleJoiner):
         if self.is_join_finished():
             return
         sync_example_id_finished, raw_data_finished = \
-                self._prepare_join(state_stale)
+                    self._prepare_join(state_stale)
         logging.info("streaming joiner: sync_example_id_finished: %s,"
                      "raw_data_finished: %s", sync_example_id_finished,
                      raw_data_finished)
         join_data_finished = False
         while self._fill_leader_join_window(sync_example_id_finished):
             leader_exhausted = sync_example_id_finished and \
-                    self._leader_join_window.size() <= \
-                    self._min_window_size / 2
+                        self._leader_join_window.size() <= \
+                        self._min_window_size / 2
             follower_exhausted = False
             delay_dump = True
 
@@ -164,16 +162,15 @@ class StreamExampleJoiner(ExampleJoiner):
                           len(self._follower_example_cache),
                           len(self._leader_unjoined_example_ids))
             while delay_dump and \
-                    self._fill_follower_join_window(raw_data_finished):
+                        self._fill_follower_join_window(raw_data_finished):
                 follower_exhausted = raw_data_finished and \
-                        self._follower_join_window.size() <= \
-                        self._min_window_size / 2
+                            self._follower_join_window.size() <= \
+                            self._min_window_size / 2
                 delay_dump = self._need_delay_dump(raw_data_finished)
                 if delay_dump:
                     self._update_join_cache()
                 else:
-                    for meta in self._dump_joined_items():
-                        yield meta
+                    yield from self._dump_joined_items()
                 self._evit_stale_follower_cache()
             if not delay_dump:
                 self._reset_joiner_state(False)
@@ -194,7 +191,7 @@ class StreamExampleJoiner(ExampleJoiner):
             if delay_dump or join_data_finished:
                 break
         if self._get_data_block_builder(False) is not None and \
-                (self._need_finish_data_block_since_interval() or
+                    (self._need_finish_data_block_since_interval() or
                     join_data_finished):
             yield self._finish_data_block()
         if join_data_finished:
@@ -214,10 +211,7 @@ class StreamExampleJoiner(ExampleJoiner):
         follower_qt = self._follower_join_window.qt()
         logging.info("delay dump leader %s, follower %s",
                      leader_qt, follower_qt)
-        if leader_qt is not None and follower_qt is not None and \
-                not follower_qt < leader_qt:
-            return False
-        return True
+        return leader_qt is None or follower_qt is None or follower_qt < leader_qt
 
     def _update_join_cache(self):
         start_tm = time.time()
@@ -286,15 +280,17 @@ class StreamExampleJoiner(ExampleJoiner):
         if not self._fill_leader_enough:
             start_tm = time.time()
             start_pos = self._leader_join_window.size()
-            if not self._fill_join_windows(self._leader_visitor,
-                                           self._leader_join_window,
-                                           None):
-                self._fill_leader_enough = sync_example_id_finished
-            else:
-                self._fill_leader_enough = True
+            self._fill_leader_enough = (
+                True
+                if self._fill_join_windows(
+                    self._leader_visitor, self._leader_join_window, None
+                )
+                else sync_example_id_finished
+            )
+
             if self._fill_leader_enough:
                 self._leader_unjoined_example_ids = \
-                    [item.example_id for _, item in self._leader_join_window]
+                        [item.example_id for _, item in self._leader_join_window]
             end_pos = self._leader_join_window.size()
             eids = [(self._leader_join_window[idx][0],
                      self._leader_join_window[idx][1].example_id)

@@ -65,13 +65,21 @@ class SortRunExampleJoiner(ExampleJoiner):
         return False
 
     def _forward_visitor(self):
-        leader_item = None if not self._leader_visitor.started() \
-                        else self._leader_visitor.get_item()
-        follower_item = None if not self._follower_visitor.started() \
-                        else self._follower_visitor.get_item()
+        leader_item = (
+            self._leader_visitor.get_item()
+            if self._leader_visitor.started()
+            else None
+        )
+
+        follower_item = (
+            self._follower_visitor.get_item()
+            if self._follower_visitor.started()
+            else None
+        )
+
         forwarded = False
         if leader_item is None or \
-                (follower_item is not None and
+                    (follower_item is not None and
                     leader_item.example_id <= follower_item.example_id):
             forwarded = self._forward_one_step(self._leader_visitor)
             if forwarded:

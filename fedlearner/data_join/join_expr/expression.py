@@ -33,8 +33,8 @@ class LTFuncDef(BaseFunction):
         super(LTFuncDef, self).__init__(1)
 
     def __call__(self, leader, follower, args):
-        assert all([hasattr(follower, att) for att in args]), "Arg missed"
-        assert all([hasattr(leader, att) for att in args]), "Arg missed"
+        assert all(hasattr(follower, att) for att in args), "Arg missed"
+        assert all(hasattr(leader, att) for att in args), "Arg missed"
         leader_event_time = getattr(leader, args[0])
         follower_event_time = getattr(follower, args[0])
         return leader_event_time < follower_event_time
@@ -44,8 +44,8 @@ class GTFuncDef(BaseFunction):
         super(GTFuncDef, self).__init__(1)
 
     def __call__(self, leader, follower, args):
-        assert all([hasattr(follower, att) for att in args]), "Arg missed"
-        assert all([hasattr(leader, att) for att in args]), "Arg missed"
+        assert all(hasattr(follower, att) for att in args), "Arg missed"
+        assert all(hasattr(leader, att) for att in args), "Arg missed"
         leader_event_time = getattr(leader, args[0])
         follower_event_time = getattr(follower, args[0])
         return leader_event_time > follower_event_time
@@ -64,8 +64,8 @@ class DateTruncDef(BaseFunction):
             follower_event_time = str(follower_event_time)
         size = int(args[1])
         if len(follower_event_time) > size:
-            leader_event_time = int(leader_event_time[0: size])
-            follower_event_time = int(follower_event_time[0: size])
+            leader_event_time = int(leader_event_time[:size])
+            follower_event_time = int(follower_event_time[:size])
         return leader_event_time == follower_event_time
 
 class EqualToDef(BaseFunction):
@@ -74,7 +74,7 @@ class EqualToDef(BaseFunction):
 
     def __call__(self, leader, follower, args):
         assert len(args) == self._arg_size, "Args not enough"
-        assert hasattr(leader, args[0]), 'Args miss [%s]'%args[0]
+        assert hasattr(leader, args[0]), f'Args miss [{args[0]}]'
         return str(args[1]) == str(getattr(leader, args[0]))
 
 LINK_MAP = dict({
@@ -92,8 +92,7 @@ class Token(object):
         return self._tok
 
     def __str__(self):
-        return "Token: " + self._tok + ":%s" % (
-            "i" if self._is_numeric else "s")
+        return (f"Token: {self._tok}" + f':{"i" if self._is_numeric else "s"}')
 
     @property
     def name(self):
@@ -108,12 +107,11 @@ class Tuple(object):
         for tok in tuples:
             if isinstance(tok, FunctionDecl):
                 self._tokens.append(tok)
+            elif isinstance(tok, str):
+                self._tokens.append(Token(tok))
             else:
-                if isinstance(tok, str):
-                    self._tokens.append(Token(tok))
-                else:
-                    assert isinstance(tok, Token), "Unknown type of %s"%tok
-                    self._tokens.append(tok)
+                assert isinstance(tok, Token), f"Unknown type of {tok}"
+                self._tokens.append(tok)
 
     def __str__(self):
         return "Tuple: " + ", ".join([it.__str__() for it in self._tokens])
@@ -131,8 +129,12 @@ class Tuple(object):
     def run_func(self):
         """ return all the function we have."""
         def run(leader, follower):
-            return all([LINK_MAP[f.name](leader, follower, f.args(True)) \
-                        for f in self._tokens if isinstance(f, FunctionDecl)])
+            return all(
+                LINK_MAP[f.name](leader, follower, f.args(True))
+                for f in self._tokens
+                if isinstance(f, FunctionDecl)
+            )
+
         return run
 
     @property
@@ -147,8 +149,7 @@ class FunctionDecl(object):
         self._args = [Token(arg) for arg in args]
 
     def __str__(self):
-        return "FunctionDecl: %s(%s)"%(
-            self._func_name, ",".join([arg.__str__() for arg in self._args]))
+        return f'FunctionDecl: {self._func_name}({",".join([arg.__str__() for arg in self._args])})'
 
     def key(self):
         raise NotImplementedError
@@ -157,9 +158,7 @@ class FunctionDecl(object):
         return self._args[i]
 
     def args(self, by_str=False):
-        if by_str:
-            return [f.key() for f in self._args]
-        return self._args
+        return [f.key() for f in self._args] if by_str else self._args
 
     @property
     def name(self):
@@ -181,9 +180,9 @@ class Expr(object):
         for tok in self._basic_block:
             if isinstance(tok, list):
                 for inner_tok in tok:
-                    expr_str += "%s%s"%(inner_tok, sep)
+                    expr_str += f"{inner_tok}{sep}"
             else:
-                expr_str += "%s%s"%(tok, sep)
+                expr_str += f"{tok}{sep}"
         return expr_str
 
     def keys(self):
@@ -192,9 +191,11 @@ class Expr(object):
 
     def run_func(self, tuple_idx):
         item = self._basic_block[tuple_idx]
-        if not item.has_func():
-            return lambda x, y: True
-        return self._basic_block[tuple_idx].run_func()
+        return (
+            self._basic_block[tuple_idx].run_func()
+            if item.has_func()
+            else (lambda x, y: True)
+        )
 
     def add_ast(self, tuples):
         if len(tuples) == 0:
@@ -260,7 +261,7 @@ class Expr(object):
                         cur_tuple.append(tok)
                 tok_pos = i+1
             else:
-                assert c in ALL_CHARS, "Illegal character [%s]"%c
+                assert c in ALL_CHARS, f"Illegal character [{c}]"
         assert left_bracket == 0, "( should match )"
         if len(strip_key) > tok_pos:
             cur_tuple.append(strip_key[tok_pos:])

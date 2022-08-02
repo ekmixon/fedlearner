@@ -19,7 +19,7 @@ from typing import Any
 
 
 def parse_and_call_fn(module_fn_path: str) -> Any:
-    if module_fn_path.find(':') == -1:
+    if ':' not in module_fn_path:
         raise RuntimeError(f'Invalid module_fn_path: {module_fn_path}')
 
     module_path, func_name = module_fn_path.split(':')
@@ -29,7 +29,6 @@ def parse_and_call_fn(module_fn_path: str) -> Any:
 
 
 def pre_start_hook() -> Any:
-    before_hook_path = os.getenv('PRE_START_HOOK', None)
-    if before_hook_path:
+    if before_hook_path := os.getenv('PRE_START_HOOK', None):
         return parse_and_call_fn(before_hook_path)
     return None

@@ -36,11 +36,12 @@ class SummaryHook(object):
             return None
         tf.io.gfile.makedirs(cls.summary_path)
         datetime_str = datetime.datetime.now().strftime("%Y%m%d-%H%M%S")
-        dir_name = '{}-{}-{}'.format(datetime_str, cls.role, cls.worker_rank)
+        dir_name = f'{datetime_str}-{cls.role}-{cls.worker_rank}'
         output_dir = os.path.join(cls.summary_path, dir_name)
         fl_logging.info('Summary output directory is %s', output_dir)
         scaffold = tf.train.Scaffold(summary_op=tf.summary.merge_all())
-        hook = tf.train.SummarySaverHook(save_steps=int(cls.save_steps),
-                                         output_dir=output_dir,
-                                         scaffold=scaffold)
-        return hook
+        return tf.train.SummarySaverHook(
+            save_steps=int(cls.save_steps),
+            output_dir=output_dir,
+            scaffold=scaffold,
+        )

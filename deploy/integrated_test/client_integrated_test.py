@@ -74,30 +74,42 @@ if __name__ == '__main__':
     args.url = args.url.strip().rstrip('/') + '/api/v' + str(args.api_version)
     cookie = login(args)
     federation_json, suffix = build_federation_json(args)
-    federation_id, federation_name = request_and_response(args=args,
-                                                          url=args.url + '/federations',
-                                                          json_data=federation_json,
-                                                          cookies=cookie,
-                                                          name_suffix=suffix)
+    federation_id, federation_name = request_and_response(
+        args=args,
+        url=f'{args.url}/federations',
+        json_data=federation_json,
+        cookies=cookie,
+        name_suffix=suffix,
+    )
+
 
     raw_data_json, suffix = build_raw_data(args, federation_id, 'template_json/template_raw_data.json')
-    raw_data_id, raw_data_name = request_and_response(args=args,
-                                                      url=args.url + '/raw_data',
-                                                      json_data=raw_data_json,
-                                                      cookies=cookie,
-                                                      name_suffix=suffix)
-    requests.post(url=args.url + '/raw_data/' + str(raw_data_id) + '/submit', cookies=cookie)
+    raw_data_id, raw_data_name = request_and_response(
+        args=args,
+        url=f'{args.url}/raw_data',
+        json_data=raw_data_json,
+        cookies=cookie,
+        name_suffix=suffix,
+    )
+
+    requests.post(
+        url=f'{args.url}/raw_data/{str(raw_data_id)}/submit', cookies=cookie
+    )
+
 
     join_ticket_json, suffix = build_data_join_ticket(args, federation_id, raw_data_name,
                                                       'template_json/template_streaming_join_ticket.json'
                                                       if args.streaming
                                                       else 'template_json/template_psi_join_ticket.json',
                                                       'Leader' if args.streaming else 'Follower')
-    join_ticket_id, join_ticket_name = request_and_response(args=args,
-                                                            url=args.url + '/tickets',
-                                                            json_data=join_ticket_json,
-                                                            cookies=cookie,
-                                                            name_suffix=suffix)
+    join_ticket_id, join_ticket_name = request_and_response(
+        args=args,
+        url=f'{args.url}/tickets',
+        json_data=join_ticket_json,
+        cookies=cookie,
+        name_suffix=suffix,
+    )
+
 
     if args.model_type == 'nn_model':
         train_ticket_json, suffix = build_train_ticket(args, federation_id,
@@ -105,9 +117,12 @@ if __name__ == '__main__':
     else:
         train_ticket_json, suffix = build_train_ticket(args, federation_id,
                                                        'template_json/template_tree_ticket.json', 'Follower')
-    train_ticket_id, train_ticket_name = request_and_response(args=args,
-                                                              url=args.url + '/tickets',
-                                                              json_data=train_ticket_json,
-                                                              cookies=cookie,
-                                                              name_suffix=suffix)
+    train_ticket_id, train_ticket_name = request_and_response(
+        args=args,
+        url=f'{args.url}/tickets',
+        json_data=train_ticket_json,
+        cookies=cookie,
+        name_suffix=suffix,
+    )
+
     print("All set. Please wait for server to pull final jobs.")

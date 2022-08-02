@@ -43,7 +43,7 @@ class RawDataManager(visitor.IndexMetaManager):
     def check_index_meta_by_process_index(self, process_index):
         with self._lock:
             if process_index < 0:
-                raise IndexError("{} is out of range".format(process_index))
+                raise IndexError(f"{process_index} is out of range")
             self._manifest = self._sync_raw_data_manifest()
             return self._manifest.next_process_index > process_index
 
@@ -52,21 +52,20 @@ class RawDataManager(visitor.IndexMetaManager):
             return None
         raw_data_meta = None
         if process_index < len(self._all_metas):
-            assert process_index == self._all_metas[process_index][0], \
-                "process index should equal {} != {}".format(
-                    process_index, self._all_metas[process_index][0]
-                )
+            assert (
+                process_index == self._all_metas[process_index][0]
+            ), f"process index should equal {process_index} != {self._all_metas[process_index][0]}"
+
             raw_data_meta = self._all_metas[process_index][1]
         else:
-            assert process_index == len(self._all_metas), \
-                "the process index should be the next all metas "\
-                "{}(process_index) != {}(size of all_metas)".format(
-                        process_index, len(self._all_metas)
-                    )
+            assert process_index == len(
+                self._all_metas
+            ), f"the process index should be the next all metas {process_index}(process_index) != {len(self._all_metas)}(size of all_metas)"
+
             raw_data_meta = self._sync_raw_data_meta(process_index)
             if raw_data_meta is None:
                 logging.fatal("the raw data of partition %d index with "\
-                              "%d must in kvstore",
+                                  "%d must in kvstore",
                               self._partition_id, process_index)
                 traceback.print_stack()
                 os._exit(-1) # pylint: disable=protected-access
@@ -83,12 +82,13 @@ class RawDataManager(visitor.IndexMetaManager):
                 )
             if not self._kvstore.cas(kvstore_key, odata, ndata):
                 raw_data_meta = self._sync_raw_data_meta(process_index)
-                assert raw_data_meta is not None, \
-                    "the raw data meta of process index {} "\
-                    "must not None".format(process_index)
+                assert (
+                    raw_data_meta is not None
+                ), f"the raw data meta of process index {process_index} must not None"
+
                 if raw_data_meta.start_index != start_index:
                     logging.fatal("raw data of partition %d index with "\
-                                  "%d must start with %d",
+                                      "%d must start with %d",
                                   self._partition_id, process_index,
                                   start_index)
                     traceback.print_stack()
@@ -141,7 +141,7 @@ class RawDataManager(visitor.IndexMetaManager):
         for process_index, meta in enumerate(all_metas):
             if process_index != meta[0]:
                 logging.fatal("process_index mismatch with index %d != %d "\
-                              "for file path %s", process_index, meta[0],
+                                  "for file path %s", process_index, meta[0],
                               meta[1].file_path)
                 traceback.print_stack()
                 os._exit(-1) # pylint: disable=protected-access
@@ -181,10 +181,11 @@ class FileBasedMockRawDataVisitor(RawDataVisitor):
             )
         manifest = self._mock_rd_manifest_manager.get_manifest(0)
         if not manifest.finished:
-            metas = []
-            for fpath in input_fpaths:
-                metas.append(dj_pb.RawDataMeta(file_path=fpath,
-                                               start_index=-1))
+            metas = [
+                dj_pb.RawDataMeta(file_path=fpath, start_index=-1)
+                for fpath in input_fpaths
+            ]
+
             self._mock_rd_manifest_manager.add_raw_data(0, metas, True)
             self._mock_rd_manifest_manager.finish_raw_data(0)
         super(FileBasedMockRawDataVisitor, self).__init__(

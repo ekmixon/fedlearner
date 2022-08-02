@@ -69,20 +69,21 @@ def _test_set(client, tags):
 
 def _test_pipline(client, tags):
     def pipe_case(pipe, stat_prefix, tags):
-        pipe.timing(stat_prefix+"timing_stat", 1, tags=tags)
-        timer = pipe.timer(stat_prefix+"timer_stat", tags=tags)
+        pipe.timing(f"{stat_prefix}timing_stat", 1, tags=tags)
+        timer = pipe.timer(f"{stat_prefix}timer_stat", tags=tags)
         timer.start()
         time.sleep(0.1)
         timer.stop()
-        @pipe.timer(stat_prefix+"timer_decorator_stat", tags=tags)
+        @pipe.timer(f"{stat_prefix}timer_decorator_stat", tags=tags)
         def process():
             time.sleep(0.1)
+
         process()
 
-        pipe.incr(stat_prefix+"incr_stat", 2, tags=tags)
-        pipe.decr(stat_prefix+"decr_stat", 3, tags=tags)
-        pipe.gauge(stat_prefix+"gauge_stat", 4, tags=tags)
-        pipe.sets(stat_prefix+"incr_stat", 5, tags=tags)
+        pipe.incr(f"{stat_prefix}incr_stat", 2, tags=tags)
+        pipe.decr(f"{stat_prefix}decr_stat", 3, tags=tags)
+        pipe.gauge(f"{stat_prefix}gauge_stat", 4, tags=tags)
+        pipe.sets(f"{stat_prefix}incr_stat", 5, tags=tags)
 
     pipe = client.pipeline()
     pipe_case(pipe, "test_pipe_", tags)
@@ -125,7 +126,7 @@ class TestUDPClient(unittest.TestCase):
 class TestFileClient(unittest.TestCase):
     def setUp(self):
         self._filename = "./stats.output"
-        self._url = "file://" + self._filename
+        self._url = f"file://{self._filename}"
         self._client = stats.Client(self._url)
         self._tags = stats.Tags({"client": "file"})
 

@@ -42,10 +42,7 @@ def _get_level_from_env():
         return _logging.WARNING
     if verbosity == "1":
         return _logging.INFO
-    if verbosity == "2":
-        return _logging.DEBUG
-
-    return None
+    return _logging.DEBUG if verbosity == "2" else None
 
 def _create_logger():
     logger = _logging.getLogger(name="fedlearner")
@@ -63,10 +60,10 @@ def _create_logger():
 _logger = _create_logger()
 
 def set_level(level):
-    level_ = _name_to_level.get(level.lower(), None)
-    if not level_:
-        raise ValueError("Unknow log level: %s"%level)
-    _logger.setLevel(level_)
+    if level_ := _name_to_level.get(level.lower(), None):
+        _logger.setLevel(level_)
+    else:
+        raise ValueError(f"Unknow log level: {level}")
 
 critical = _logger.critical
 fatal = _logger.critical

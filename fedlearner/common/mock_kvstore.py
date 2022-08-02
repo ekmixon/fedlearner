@@ -33,15 +33,11 @@ class MockKVStore(object):
 
         @property
         def key(self):
-            if isinstance(self._key, str):
-                return self._key.encode()
-            return self._key
+            return self._key.encode() if isinstance(self._key, str) else self._key
 
         @property
         def value(self):
-            if isinstance(self._value, str):
-                return self._value.encode()
-            return self._value
+            return self._value.encode() if isinstance(self._value, str) else self._value
 
     class EventNotifier(object):
         def __init__(self, clnt):
@@ -111,10 +107,7 @@ class MockKVStore(object):
 
     def delete_prefix(self, prefix):
         with self._lock:
-            deleted = []
-            for key in self._data:
-                if key.startswith(prefix):
-                    deleted.append(key)
+            deleted = [key for key in self._data if key.startswith(prefix)]
             for key in deleted:
                 self._data.pop(key, None)
                 self._notify_if_need(key)
@@ -131,9 +124,7 @@ class MockKVStore(object):
 
     def replace(self, key, old_value, new_value):
         with self._lock:
-            stored = None
-            if key in self._data:
-                stored = self._data[key]
+            stored = self._data[key] if key in self._data else None
             if stored != old_value:
                 return False
             self._data[key] = new_value
@@ -162,20 +153,21 @@ class MockKVStore(object):
     def get_prefix(self, prefix, sort_order='ascend'):
         kvs = []
         with self._lock:
-            for key, value in self._data.items():
-                if key.startswith(prefix):
-                    kvs.append((value.encode(), MockKVStore.KV(key, None)))
-            if sort_order == 'descend':
-                kvs = sorted(kvs, key=lambda kv: kv[1].key, reverse=True)
-            elif sort_order == 'ascend':
+            kvs.extend(
+                (value.encode(), MockKVStore.KV(key, None))
+                for key, value in self._data.items()
+                if key.startswith(prefix)
+            )
+
+            if sort_order == 'ascend':
                 kvs = sorted(kvs, key=lambda kv: kv[1].key, reverse=False)
+            elif sort_order == 'descend':
+                kvs = sorted(kvs, key=lambda kv: kv[1].key, reverse=True)
             return kvs
 
     def _notify_if_need(self, key):
         if key in self._event_notifier:
-            value = None
-            if key in self._data:
-                value = self._data[key]
+            value = self._data[key] if key in self._data else None
             for en in self._event_notifier[key]:
                 en.notify(key, value)
 
@@ -184,7 +176,7 @@ class MockKVStoreClient(object):
     MOCK_KVStore_POOL = {}
 
     def __init__(self, host, port):
-        key = '{}:{}'.format(host, port)
+        key = f'{host}:{port}'
         with self.POOL_LOCK:
             if key not in self.MOCK_KVStore_POOL:
                 self.MOCK_KVStore_POOL[key] = MockKVStore()

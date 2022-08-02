@@ -30,19 +30,23 @@ def input_fn(bridge, trainer_master=None):
     dataset = flt.data.DataBlockLoader(args.batch_size, ROLE,
         bridge, trainer_master).make_dataset()
     def parse_fn(example):
-        feature_map = dict()
+        feature_map = {}
         feature_map = {"fids": tf.VarLenFeature(tf.int64)}
         feature_map["example_id"] = tf.FixedLenFeature([], tf.string)
         features = tf.parse_example(example, features=feature_map)
         return features, dict(y=tf.constant(0))
+
     dataset = dataset.map(map_func=parse_fn,
         num_parallel_calls=tf.data.experimental.AUTOTUNE)
     return dataset
 
 def serving_input_receiver_fn():
-    features = {}
-    features['fids_indices'] = tf.placeholder(dtype=tf.int64, shape=[None],
-        name='fids_indices')
+    features = {
+        'fids_indices': tf.placeholder(
+            dtype=tf.int64, shape=[None], name='fids_indices'
+        )
+    }
+
     features['fids_values'] = tf.placeholder(dtype=tf.int64, shape=[None],
         name='fids_values')
     features['fids_dense_shape'] = tf.placeholder(dtype=tf.int64, shape=[None],

@@ -126,18 +126,13 @@ class DFSClient(object):
     @staticmethod
     def _normalize_input_key(key):
         skip_cnt = 0
-        while key[skip_cnt] == '.' or key[skip_cnt] == '/':
+        while key[skip_cnt] in ['.', '/']:
             skip_cnt += 1
-        if skip_cnt > 0:
-            return key[skip_cnt:]
-        return key
+        return key[skip_cnt:] if skip_cnt > 0 else key
 
     @staticmethod
     def normalize_output_key(key, base_dir):
-        if isinstance(base_dir, str):
-            assert key.startswith(base_dir)
-        else:
-            assert key.startswith(base_dir)
+        assert key.startswith(base_dir)
         return key[len(base_dir)+1:]
 
     @classmethod

@@ -25,13 +25,13 @@ def powmod(a, b, c):
     """
     return int: (a ** b) % c
     """
-    
+
     if a == 1:
         return 1
-    
+
     if max(a, b, c) < POWMOD_GMP_SIZE:
         return pow(a, b, c)
-    
+
     else:
         return int(gmpy2.powmod(a, b, c))
 
@@ -40,10 +40,10 @@ def invert(a, b):
     """return int: x, where a * x == 1 mod b
     """    
     x = int(gmpy2.invert(a, b))
-   
+
     if x == 0:
         raise ZeroDivisionError('invert(a, b) no inverse exists')
-    
+
     return x
    
    

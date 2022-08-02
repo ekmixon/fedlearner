@@ -155,15 +155,13 @@ class SparseFLModel(estimator.FLModel):
             raise ConfigRunError()
 
         self._sparse_v2opt = {}
-        bias_config = self._get_bias_slot_configs()
-        if bias_config:
+        if bias_config := self._get_bias_slot_configs():
             bias_weights = self._bias_embedding.weights
             for i, opt in enumerate(bias_config['optimizers']):
                 for j in range(self._num_shards):
                     self._sparse_v2opt[bias_weights[i][j]] = opt
 
-        vec_config = self._get_vec_slot_configs()
-        if vec_config:
+        if vec_config := self._get_vec_slot_configs():
             vec_weights = self._vec_embedding.weights
             for i, opt in enumerate(vec_config['optimizers']):
                 for j in range(self._num_shards):
@@ -203,8 +201,14 @@ class SparseFLEstimator(estimator.FLEstimator):
         except ValueError:
             ps_indices = None
         finally:
-            self._embedding_devices = [None,] if not ps_indices else \
-                ['/job:ps/task:%d'%i for i in ps_indices]
+            self._embedding_devices = (
+                ['/job:ps/task:%d' % i for i in ps_indices]
+                if ps_indices
+                else [
+                    None,
+                ]
+            )
+
         self._num_shards = len(self._embedding_devices)
 
     def _preprocess_fids(self, fids, configs):
@@ -214,8 +218,10 @@ class SparseFLEstimator(estimator.FLEstimator):
                                     dense_shape=fids.dense_shape)
         features = {}
         for config in configs:
-            features.update(operator._multidevice_preprocess_fids(
-                fids, config, num_shards=self._num_shards))
+            features |= operator._multidevice_preprocess_fids(
+                fids, config, num_shards=self._num_shards
+            )
+
         return features
 
     def _set_model_configs(self, mode): #features, labels, mode):

@@ -46,7 +46,7 @@ def decode_index_meta(fpath):
     try:
         items = index_str.split('-')
         if len(items) != 2:
-            raise RuntimeError("fname {} format error".format(fname))
+            raise RuntimeError(f"fname {fname} format error")
         process_index, start_index = int(items[0]), int(items[1])
     except Exception as e: # pylint: disable=broad-except
         logging.fatal("fname %s not satisfied with pattern process_index-"\
@@ -64,15 +64,13 @@ class ExampleIdManager(visitor.IndexMetaManager):
         self._partition_id = partition_id
         self._visit_only = visit_only
         self._make_directory_if_nessary()
-        index_metas = []
-        if visit_only:
-            index_metas = self._preload_example_id_meta()
+        index_metas = self._preload_example_id_meta() if visit_only else []
         super(ExampleIdManager, self).__init__(index_metas)
         self._anchor = None
         self._sync_dumped_example_id_anchor()
         if self._visit_only:
             assert self._anchor is not None, \
-                "the example id anchor must not None after sync anchor"
+                    "the example id anchor must not None after sync anchor"
             if self._anchor.HasField('undumped'):
                 self._index_metas = []
             else:
@@ -88,9 +86,7 @@ class ExampleIdManager(visitor.IndexMetaManager):
     def get_last_dumped_index(self):
         with self._lock:
             anchor = self._sync_dumped_example_id_anchor()
-            if anchor.HasField('last_meta'):
-                return anchor.last_meta.end_index
-            return None
+            return anchor.last_meta.end_index if anchor.HasField('last_meta') else None
 
     def check_index_meta_by_process_index(self, process_index):
         with self._lock:
@@ -107,27 +103,24 @@ class ExampleIdManager(visitor.IndexMetaManager):
         dirname = os.path.dirname(fpath)
         fname = os.path.basename(fpath)
         if not gfile.Exists(fpath):
-            raise ValueError("file {} is not existed".format(fpath))
+            raise ValueError(f"file {fpath} is not existed")
         if dirname != self._example_dumped_dir():
-            raise ValueError("file {} should be in {}".format(
-                             fpath, self._example_dumped_dir()))
+            raise ValueError(f"file {fpath} should be in {self._example_dumped_dir()}")
         if start_index > end_index:
-            raise ValueError("bad index range[{}, {}]".format(
-                              start_index, end_index))
+            raise ValueError(f"bad index range[{start_index}, {end_index}]")
         encode_fname = encode_example_id_dumped_fname(process_index,
                                                       start_index)
         if encode_fname != fname:
-            raise ValueError("encode_fname mismatch {} != {} "\
-                             .format(encode_fname, fname))
+            raise ValueError(f"encode_fname mismatch {encode_fname} != {fname} ")
         with self._lock:
             if self._visit_only:
                 raise RuntimeError("update_dumped_example_id_anchor only "\
-                                   "support not visit only")
+                                       "support not visit only")
             self._sync_dumped_example_id_anchor()
             if self._anchor.HasField('undumped'):
                 if start_index != 0 or process_index != 0:
                     raise ValueError("start index and process index "\
-                                     "should start at 0")
+                                         "should start at 0")
             else:
                 if start_index <= self._anchor.last_meta.end_index:
                     raise ValueError("index should be incremental")
@@ -179,11 +172,11 @@ class ExampleIdManager(visitor.IndexMetaManager):
         try:
             items = index_str.split('-')
             if len(items) != 2:
-                raise RuntimeError("fname {} format error".format(fname))
+                raise RuntimeError(f"fname {fname} format error")
             process_index, start_index = int(items[0]), int(items[1])
         except Exception as e: # pylint: disable=broad-except
             logging.fatal("fname %s not satisfied with pattern process_index-"\
-                          "start_index", fname)
+                              "start_index", fname)
             traceback.print_stack()
             os._exit(-1) # pylint: disable=protected-access
         else:
@@ -216,10 +209,10 @@ class ExampleIdManager(visitor.IndexMetaManager):
             anchor = dj_pb.DumpedExampleIdAnchor()
             if data is None:
                 self._anchor = \
-                    dj_pb.DumpedExampleIdAnchor(undumped=empty_pb2.Empty())
+                        dj_pb.DumpedExampleIdAnchor(undumped=empty_pb2.Empty())
             else:
                 self._anchor = \
-                    text_format.Parse(data, dj_pb.DumpedExampleIdAnchor(),
+                        text_format.Parse(data, dj_pb.DumpedExampleIdAnchor(),
                                       allow_unknown_field=True)
         return self._anchor
 
@@ -263,21 +256,17 @@ class ExampleIdVisitor(visitor.Visitor):
                     rows = convert_tf_example_to_dict(tf_example)
 
                     example_id_num = len(rows['example_id'])
-                    index = 0
-                    while index < example_id_num:
-                        row = dict()
+                    for index in range(example_id_num):
+                        row = {}
                         for fn in SYNC_ALLOWED_OPTIONAL_FIELDS:
                             if fn not in rows:
                                 continue
                             value_list = rows[fn]
                             if len(value_list) > 0:
                                 row[fn] = value_list[index]
-                        example_id_item = ExampleIdVisitor.ExampleIdItem(
-                                index + lite_example_ids.begin_index,
-                                row
-                            )
-                        yield example_id_item
-                        index += 1
+                        yield ExampleIdVisitor.ExampleIdItem(
+                            index + lite_example_ids.begin_index, row
+                        )
 
     def __init__(self, kvstore, data_source, partition_id):
         super(ExampleIdVisitor, self).__init__(

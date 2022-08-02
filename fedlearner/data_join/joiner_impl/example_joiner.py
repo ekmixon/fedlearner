@@ -40,12 +40,12 @@ class ExampleJoiner(object):
         self._data_source = data_source
         self._partition_id = partition_id
         self._leader_visitor = \
-                ExampleIdVisitor(kvstore, self._data_source, self._partition_id)
+                    ExampleIdVisitor(kvstore, self._data_source, self._partition_id)
         self._follower_visitor = \
-                RawDataVisitor(kvstore, self._data_source,
+                    RawDataVisitor(kvstore, self._data_source,
                                self._partition_id, raw_data_options)
         self._data_block_manager = \
-                DataBlockManager(self._data_source, self._partition_id)
+                    DataBlockManager(self._data_source, self._partition_id)
         meta = self._data_block_manager.get_lastest_data_block_meta()
         if meta is None:
             self._joiner_stats = JoinerStats(0, -1, -1)
@@ -117,10 +117,10 @@ class ExampleJoiner(object):
             if self._state_stale or self._sync_example_id_finished:
                 return True
             if self._follower_visitor.is_visitor_stale() or \
-                    self._leader_visitor.is_visitor_stale():
+                        self._leader_visitor.is_visitor_stale():
                 return True
             if not self._follower_visitor.finished() and \
-                    not self._leader_visitor.finished():
+                        not self._leader_visitor.finished():
                 return True
             return self._need_finish_data_block_since_interval()
 
@@ -135,9 +135,8 @@ class ExampleJoiner(object):
 
     def _inner_joiner(self, reset_state):
         raise NotImplementedError(
-                "_inner_joiner not implement for base class: %s" %
-                ExampleJoiner.name()
-            )
+            f"_inner_joiner not implement for base class: {ExampleJoiner.name()}"
+        )
 
     def _is_state_stale(self):
         with self._lock:

@@ -122,13 +122,13 @@ class TransmitLeader(object):
                 w.stop_routine()
 
     def _partition_allocator_name(self):
-        return self._repr_str+'-new_partition_allocator'
+        return f'{self._repr_str}-new_partition_allocator'
 
     def _producer_name(self):
-        return self._repr_str+'-data_producer'
+        return f'{self._repr_str}-data_producer'
 
     def _consumer_name(self):
-        return self._repr_str+'-data_consumer'
+        return f'{self._repr_str}-data_consumer'
 
     def _make_raw_data_request(self):
         raise NotImplementedError("_make_raw_data_request_for_process is "\
@@ -147,14 +147,15 @@ class TransmitLeader(object):
         req = self._make_raw_data_request()
         rsp = self._master_client.RequestJoinPartition(req)
         if rsp.status.code != 0:
-            raise RuntimeError("{} failed to call RequestJoinPartition, "\
-                               "error msg {}".format(self._repr_str,
-                                                     rsp.status.error_message))
+            raise RuntimeError(
+                f"{self._repr_str} failed to call RequestJoinPartition, error msg {rsp.status.error_message}"
+            )
+
         if rsp.HasField('finished'):
             self._set_partition_exhausted()
             return
         assert rsp.HasField('manifest'), "rsp of RequestJoinPartition must "\
-                                         "has manifest if not finished tag"
+                                             "has manifest if not finished tag"
         impl_ctx = self._make_new_impl_ctx(rsp.manifest)
         with self._lock:
             assert self._impl_ctx is None
@@ -215,12 +216,14 @@ class TransmitLeader(object):
 
     def _data_consumer_fn(self, impl_ctx):
         assert isinstance(impl_ctx, TransmitLeader.ImplContext)
-        consume_finished = False
-        if not impl_ctx.is_peer_finished():
-            consume_finished = self._consume(impl_ctx)
-        if consume_finished or impl_ctx.is_peer_finished():
-            if self._finish_partition(impl_ctx):
-                self._wakeup_new_partition_allocator()
+        consume_finished = (
+            False if impl_ctx.is_peer_finished() else self._consume(impl_ctx)
+        )
+
+        if (
+            consume_finished or impl_ctx.is_peer_finished()
+        ) and self._finish_partition(impl_ctx):
+            self._wakeup_new_partition_allocator()
 
     def _data_consumer_cond(self):
         with self._lock:
@@ -232,8 +235,7 @@ class TransmitLeader(object):
 
     def _consume(self, impl_ctx):
         assert isinstance(impl_ctx, TransmitLeader.ImplContext)
-        peer_finished = self._start_partition(impl_ctx)
-        if peer_finished:
+        if peer_finished := self._start_partition(impl_ctx):
             impl_ctx.set_peer_finished()
         consume_finished = False
         while not impl_ctx.is_peer_finished():
@@ -254,9 +256,10 @@ class TransmitLeader(object):
         )
         rsp = self._peer_client.StartPartition(req)
         if rsp.status.code != 0:
-            raise RuntimeError("{} failed to call for start partition {}, "\
-                               "reason {}".format(self._repr_str,
-                               impl_ctx.partition_id, rsp.status.error_message))
+            raise RuntimeError(
+                f"{self._repr_str} failed to call for start partition {impl_ctx.partition_id}, reason {rsp.status.error_message}"
+            )
+
         self._update_peer_index(impl_ctx, rsp.next_index, rsp.dumped_index)
         return rsp.finished
 
@@ -271,8 +274,10 @@ class TransmitLeader(object):
             )
         rsp = self._peer_client.SyncPartition(req)
         if rsp.status.code != 0:
-            raise RuntimeError("Peer of {} refuse item. reason: {},".format(
-                                self._repr_str, rsp.status.error_message))
+            raise RuntimeError(
+                f"Peer of {self._repr_str} refuse item. reason: {rsp.status.error_message},"
+            )
+
         self._update_peer_index(impl_ctx, rsp.next_index, rsp.dumped_index)
 
     @metrics.timer(func_name='finish_partition',
@@ -288,14 +293,14 @@ class TransmitLeader(object):
             rsp = self._peer_client.FinishPartition(req)
             if rsp.status.code != 0:
                 raise RuntimeError(
-                        "{} failed to call peer finish partition reason: " \
-                        "{}".format(self._repr_str, rsp.status.error_message)
-                    )
+                    f"{self._repr_str} failed to call peer finish partition reason: {rsp.status.error_message}"
+                )
+
             if rsp.finished:
                 impl_ctx.set_peer_finished()
         if not impl_ctx.is_peer_finished():
             logging.debug("peer of %s is still dumping item for partition "\
-                          "%d waitiing", self._repr_str, impl_ctx.partition_id)
+                              "%d waitiing", self._repr_str, impl_ctx.partition_id)
             return False
 
         logging.debug("peer of %s has dump all item for partition %d",
@@ -303,8 +308,10 @@ class TransmitLeader(object):
         req = self._make_finish_raw_data_request(impl_ctx)
         rsp = self._master_client.FinishJoinPartition(req)
         if rsp.code != 0:
-            raise RuntimeError("{} failed to finish partition. reason: {}"\
-                               .format(self._repr_str, rsp.error_message))
+            raise RuntimeError(
+                f"{self._repr_str} failed to finish partition. reason: {rsp.error_message}"
+            )
+
         logging.debug("%s has finished for partition %d",
                       self._repr_str, impl_ctx.partition_id)
         self._impl_ctx = None
@@ -335,10 +342,10 @@ class TransmitLeader(object):
                 )
             rsp = self._master_client.ForwardPeerDumpedIndex(req)
             if rsp.code != 0:
-                raise RuntimeError("{} failed to forward peer dumped index "\
-                                   "to {} reason: {}".format(self._repr_str,
-                                                             peer_dumped_index,
-                                                             rsp.error_message))
+                raise RuntimeError(
+                    f"{self._repr_str} failed to forward peer dumped index to {peer_dumped_index} reason: {rsp.error_message}"
+                )
+
             metrics.emit_store('peer_dumped_index', peer_dumped_index,
                                self._get_metrics_tag(impl_ctx))
 

@@ -60,10 +60,7 @@ def _make_random_fid(slot_id):
     return _make_fid(slot_id, int(np.int64(random.getrandbits(FEATURE_BITS))))
 
 def _fake_sample(slots):
-    fids = []
-    for slot in slots:
-        fids.append(_make_random_fid(slot))
-    return fids
+    return [_make_random_fid(slot) for slot in slots]
 
 
 if __name__ == '__main__':
@@ -75,9 +72,12 @@ if __name__ == '__main__':
 
         for j in range(chunk_size):
             idx = i*chunk_size + j
-            features_l = {}
-            features_l['example_id'] = \
-                Feature(bytes_list=BytesList(value=[str(idx).encode()]))
+            features_l = {
+                'example_id': Feature(
+                    bytes_list=BytesList(value=[str(idx).encode()])
+                )
+            }
+
             features_l['y'] = \
                 Feature(int64_list=Int64List(value=[random.randint(0, 1)]))
             features_l['fids'] = \
@@ -85,9 +85,12 @@ if __name__ == '__main__':
             fl.write(Example(features=Features(feature=features_l))
                 .SerializeToString())
 
-            features_f = {}
-            features_f['example_id'] = \
-                Feature(bytes_list=BytesList(value=[str(idx).encode()]))
+            features_f = {
+                'example_id': Feature(
+                    bytes_list=BytesList(value=[str(idx).encode()])
+                )
+            }
+
             features_f['fids'] = \
                 Feature(int64_list=Int64List(
                     value=_fake_sample(FOLLOWER_SLOTS)))

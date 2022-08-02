@@ -49,13 +49,10 @@ def make_fid_v2(slot_id, hash_value):
 def _compute_slot_config(unsorted_slot_config, groups=None, use_fid_v2=False):
     slot_config = sorted(unsorted_slot_config, key=lambda x: (x[3], x[1]))
     num_slots = len(slot_config)
-    num_keys = len(set([x[3] for x in slot_config]))
+    num_keys = len({x[3] for x in slot_config})
 
-    if groups < num_keys:
-        groups = num_keys
-    if groups > num_slots:
-        groups = num_slots
-
+    groups = max(groups, num_keys)
+    groups = min(groups, num_slots)
     MAX_INT = sys.maxsize // 2
 
     cost = [[MAX_INT for _ in  range(num_slots + 1)] for _ in range(groups + 1)]

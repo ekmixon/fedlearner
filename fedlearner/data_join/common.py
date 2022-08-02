@@ -104,15 +104,19 @@ def encode_block_id(data_source_name, meta):
 def decode_block_id(block_id):
     segs = block_id.split('.')
     if len(segs) != 4:
-        raise ValueError("{} invalid. Segmenet of block_id split "\
-                          "by . shoud be 4".format(block_id))
+        raise ValueError(
+            f"{block_id} invalid. Segmenet of block_id split by . shoud be 4"
+        )
+
     data_source_name = segs[0]
     partition_id = int(segs[1][len('partition_'):])
     data_block_index = int(segs[2])
     time_frame_segs = segs[3].split('-')
     if len(time_frame_segs) != 2:
-        raise ValueError("{} invalid. Segmenet of time frame split "
-                         "by - should be 2".format(block_id))
+        raise ValueError(
+            f"{block_id} invalid. Segmenet of time frame split by - should be 2"
+        )
+
     start_time, end_time = int(time_frame_segs[0]), int(time_frame_segs[1])
     return {"data_source_name": data_source_name,
             "partition_id": partition_id,
@@ -121,7 +125,7 @@ def decode_block_id(block_id):
 
 def encode_data_block_fname(data_source_name, meta):
     block_id = encode_block_id(data_source_name, meta)
-    return '{}{}'.format(block_id, DataBlockSuffix)
+    return f'{block_id}{DataBlockSuffix}'
 
 def load_data_block_meta(meta_fpath):
     assert meta_fpath.endswith(DataBlockMetaSuffix)
@@ -138,9 +142,7 @@ def retrieve_data_source(kvstore, data_source_name):
     kvstore_key = data_source_kvstore_base_dir(data_source_name)
     raw_data = kvstore.get_data(kvstore_key)
     if raw_data is None:
-        raise ValueError("kvstore master key is None for {}".format(
-            data_source_name)
-        )
+        raise ValueError(f"kvstore master key is None for {data_source_name}")
     return text_format.Parse(raw_data, common_pb.DataSource(),
                              allow_unknown_field=True)
 
@@ -174,8 +176,7 @@ def convert_dict_to_tf_example(src_dict):
     tf_feature = {}
     for key, feature in src_dict.items():
         if not isinstance(key, str):
-            raise RuntimeError('the key {}({}) of dict must a '\
-                               'string'.format(key, type(key)))
+            raise RuntimeError(f'the key {key}({type(key)}) of dict must a string')
         basic_type = type(feature)
         # Due to all fields' value are type of str in csv format,
         # we try best to convert the digital string into numerical value.
@@ -191,19 +192,19 @@ def convert_dict_to_tf_example(src_dict):
                     basic_type = float
                 except ValueError as e:
                     if key in ALLOWED_FIELDS:
-                        raise ValueError(
-                            '%s should be numerical instead of str'%key)
+                        raise ValueError(f'{key} should be numerical instead of str')
         if isinstance(type(feature), list):
             if len(feature) == 0:
                 logging.debug('skip %s since feature is empty list', key)
                 continue
             basic_type = feature[0]
             if not all(isinstance(x, basic_type) for x in feature):
-                raise RuntimeError('type of elements in feature of key {} '\
-                                   'is not the same'.format(key))
+                raise RuntimeError(f'type of elements in feature of key {key} is not the same')
         if not isinstance(feature, _valid_basic_feature_type):
-            raise RuntimeError("feature type({}) of key {} is not support "\
-                               "for tf Example".format(basic_type, key))
+            raise RuntimeError(
+                f"feature type({basic_type}) of key {key} is not support for tf Example"
+            )
+
         if basic_type == int:
             value = feature if isinstance(feature, list) else [feature]
             tf_feature[key] = tf.train.Feature(
@@ -226,11 +227,11 @@ def convert_tf_example_to_dict(src_tf_example):
     tf_feature = src_tf_example.features.feature
     for key, feat in tf_feature.items():
         if feat.HasField('int64_list'):
-            csv_val = [item for item in feat.int64_list.value] # pylint: disable=unnecessary-comprehension
+            csv_val = list(feat.int64_list.value)
         elif feat.HasField('bytes_list'):
-            csv_val = [item for item in feat.bytes_list.value] # pylint: disable=unnecessary-comprehension
+            csv_val = list(feat.bytes_list.value)
         elif feat.HasField('float_list'):
-            csv_val = [item for item in feat.float_list.value] #pylint: disable=unnecessary-comprehension
+            csv_val = list(feat.float_list.value)
         else:
             assert False, "feat type must in int64, byte, float"
         assert isinstance(csv_val, list)
@@ -272,20 +273,18 @@ def data_source_example_dumped_dir(data_source):
 class Singleton(type):
     _instances = {}
     _lck = threading.Lock()
-    def __call__(cls, *args, **kwargs):
-        with cls._lck:
-            if cls not in cls._instances:
-                cls._instances[cls] = super(Singleton, cls).__call__(*args,
-                                                                     **kwargs)
-            return cls._instances[cls]
+    def __call__(self, *args, **kwargs):
+        with self._lck:
+            if self not in self._instances:
+                self._instances[self] = super(Singleton, self).__call__(*args, **kwargs)
+            return self._instances[self]
 
 class _MemUsageProxy(object, metaclass=Singleton):
     def __init__(self):
         self._lock = threading.Lock()
         self._mem_limit = int(os.environ.get('MEM_LIMIT', '17179869184'))
         self._reserved_mem = int(self._mem_limit * 0.5)
-        if self._reserved_mem >= 2 << 30:
-            self._reserved_mem = 2 << 30
+        self._reserved_mem = min(self._reserved_mem, 2 << 30)
         self._rss_mem_usage = 0
         self._rss_updated_tm = 0
 
@@ -406,19 +405,17 @@ def interval_to_timestamp(itv):
             unit_no[c] = s_no
             prv_order = unit_order[c]
             s_no = ""
-    tmstmp = 0
     if len(s_no) > 0 and "S" not in unit_no:
         unit_no["S"] = s_no
-    for i, item in enumerate(unit):
-        if item in unit_no:
-            tmstmp += int(unit_no[item]) * multiple[i]
-    return tmstmp
+    return sum(
+        int(unit_no[item]) * multiple[i]
+        for i, item in enumerate(unit)
+        if item in unit_no
+    )
 
 
 def timestamp_check_valid(iso_dt):
-    if iso_dt.year > 3000:
-        return False
-    return True
+    return iso_dt.year <= 3000
 
 
 def convert_to_str(value):

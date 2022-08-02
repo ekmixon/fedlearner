@@ -52,7 +52,7 @@ class _SlideCache(object):
         else:
             self._item_cnt += len(hids)
         self._begin_index = (self._begin_index + evict_cnt) % \
-                self._stats_windows_size
+                    self._stats_windows_size
         return evict_hids
 
     def get_stats_index(self):
@@ -64,9 +64,7 @@ class _SlideCache(object):
             yield self._slide_buffer[ri]
 
     def __getitem__(self, hid):
-        if hid not in self._cache:
-            return 0
-        return self._cache[hid]
+        return 0 if hid not in self._cache else self._cache[hid]
 
     def _inner_index(self, index):
         return (index + self._begin_index) % self._stats_windows_size
@@ -96,12 +94,9 @@ class JoinerStats(object):
             self._stats_cum_join_num += self._leader_cache[hid]
 
     def calc_stats_joined_num(self):
-        joined_num = 0
-        for hid in self._leader_cache:
-            if self._follower_cache[hid] > 0:
-                joined_num += 1
+        joined_num = sum(self._follower_cache[hid] > 0 for hid in self._leader_cache)
         return self._stats_cum_join_num + \
-                joined_num * JoinerStats._SampleRateReciprocal
+                    joined_num * JoinerStats._SampleRateReciprocal
 
     def get_leader_stats_index(self):
         return self._leader_cache.get_stats_index()
@@ -116,10 +111,8 @@ class JoinerStats(object):
             if idx <= slide_cache.get_stats_index():
                 continue
             max_idx = idx
-            hkey = '{}{}'.format(self._hash_prefix, eid)
+            hkey = f'{self._hash_prefix}{eid}'
             hid = CityHash64(hkey)
             if hid % JoinerStats._SampleRateReciprocal == 0:
                 sampled_hids.append(hid)
-        if max_idx >= 0:
-            return slide_cache.fill_hash_ids(max_idx, sampled_hids)
-        return []
+        return slide_cache.fill_hash_ids(max_idx, sampled_hids) if max_idx >= 0 else []

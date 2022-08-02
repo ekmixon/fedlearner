@@ -39,9 +39,12 @@ for i in range(N):
 
     for j in range(chunk_size):
         idx = i*chunk_size + j
-        features_l = {}
-        features_l['example_id'] = \
-            Feature(bytes_list=BytesList(value=[str(idx).encode()]))
+        features_l = {
+            'example_id': Feature(
+                bytes_list=BytesList(value=[str(idx).encode()])
+            )
+        }
+
         features_l['y'] = \
             Feature(int64_list=Int64List(value=[random.randint(0, 1)]))
         for k in range(512):
@@ -50,9 +53,12 @@ for i in range(N):
         fl.write(
             Example(features=Features(feature=features_l)).SerializeToString())
 
-        features_f = {}
-        features_f['example_id'] = \
-            Feature(bytes_list=BytesList(value=[str(idx).encode()]))
+        features_f = {
+            'example_id': Feature(
+                bytes_list=BytesList(value=[str(idx).encode()])
+            )
+        }
+
         for k in range(512):
             features_f['x_{0}'.format(k)] = \
                 Feature(int64_list=Int64List(value=[random.randint(0, 100)]))

@@ -60,9 +60,7 @@ class CsvItem(RawDataIter.Item):
         # value is b'' if field not exist'
         if field.type == bytes and isinstance(value, str):
             return value.encode()
-        if field.type == int:
-            return int(value)
-        return value
+        return int(value) if field.type == int else value
 
     @property
     def tf_record(self):
@@ -82,11 +80,12 @@ class CsvItem(RawDataIter.Item):
         return self._features
 
     def add_extra_fields(self, additional_records, cache=False):
-        new_features = {}
-        for name, value in additional_records.items():
-            if name not in common.ALLOWED_FIELDS:
-                continue
-            new_features[name] = value
+        new_features = {
+            name: value
+            for name, value in additional_records.items()
+            if name in common.ALLOWED_FIELDS
+        }
+
         self._features.update(new_features)
         if self._tf_record is not None:
             self._tf_record = None
@@ -108,14 +107,14 @@ class CsvDictIter(RawDataIter):
             read_finished = False
             while not read_finished:
                 dict_reader, rest_buffer, read_finished = \
-                        self._make_csv_dict_reader(fh, rest_buffer,
+                            self._make_csv_dict_reader(fh, rest_buffer,
                                                    aware_headers)
                 aware_headers = False
                 if self._headers is None:
                     self._headers = dict_reader.fieldnames
                 elif self._headers != dict_reader.fieldnames:
                     logging.fatal("the schema of %s is %s, mismatch "\
-                                  "with previous %s", fpath,
+                                      "with previous %s", fpath,
                                   self._headers, dict_reader.fieldnames)
                     traceback.print_stack()
                     os._exit(-1) # pylint: disable=protected-access
@@ -133,7 +132,7 @@ class CsvDictIter(RawDataIter):
             return csv.DictReader(fh), [], True
         read_buffer = fh.read(self._options.read_ahead_size)
         read_finished = len(read_buffer.encode())\
-                        < self._options.read_ahead_size
+                            < self._options.read_ahead_size
         idx = read_buffer.rfind('\n')
         if read_finished:
             idx = len(read_buffer) - 1
@@ -142,15 +141,19 @@ class CsvDictIter(RawDataIter):
                           self._options.read_ahead_size)
             traceback.print_stack()
             os._exit(-1) # pylint: disable=protected-access
-        str_buffer = read_buffer[0:idx+1] if len(rest_buffer) == 0 \
-                        else rest_buffer+read_buffer[0:idx+1]
+        str_buffer = (
+            read_buffer[: idx + 1]
+            if len(rest_buffer) == 0
+            else rest_buffer + read_buffer[: idx + 1]
+        )
+
         if aware_headers:
             return csv.DictReader(io.StringIO(str_buffer)), \
-                    read_buffer[idx+1:], read_finished
+                        read_buffer[idx+1:], read_finished
         assert self._headers is not None
         return csv.DictReader(io.StringIO(str_buffer),
                               fieldnames=self._headers), \
-                read_buffer[idx+1:], read_finished
+                    read_buffer[idx+1:], read_finished
 
     def _reset_iter(self, index_meta):
         if index_meta is not None:

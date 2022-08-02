@@ -46,7 +46,7 @@ if __name__ == "__main__":
     set_logger()
 
     pub_key, prv_key = rsa.newkeys(args.rsa_lenght)
-    pub_fname = args.key_prefix + '.pub'
+    pub_fname = f'{args.key_prefix}.pub'
     dump_rsa_key_as_pem(args.output_directory, pub_key, pub_fname)
     prv_fname = args.key_prefix
     dump_rsa_key_as_pem(args.output_directory, prv_key, args.key_prefix)

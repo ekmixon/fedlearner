@@ -48,9 +48,10 @@ class ExampleIdDumperManager(object):
             if example_id_batch.example_id_num == 0:
                 logging.warning("skip example id batch since empty")
                 return
-            assert self._end_index + 1 == example_id_batch.begin_index, \
-                "the recv example id index should be consecutive, {} + 1 "\
-                "!= {}".format(self._end_index, example_id_batch.begin_index)
+            assert (
+                self._end_index + 1 == example_id_batch.begin_index
+            ), f"the recv example id index should be consecutive, {self._end_index} + 1 != {example_id_batch.begin_index}"
+
             self._tf_record_writer.write(
                     example_id_batch.sered_lite_example_ids
                 )
@@ -59,10 +60,7 @@ class ExampleIdDumperManager(object):
 
         def check_dumper_full(self):
             dump_count = self._end_index - self._start_index + 1
-            if self._dump_threshold > 0 and \
-                    dump_count > self._dump_threshold:
-                return True
-            return False
+            return self._dump_threshold > 0 and dump_count > self._dump_threshold
 
         def finish_example_id_dumper(self):
             self._tf_record_writer.close()
@@ -102,14 +100,14 @@ class ExampleIdDumperManager(object):
         self._data_source = data_source
         self._partition_id = partition_id
         self._dump_interval = \
-                example_id_dump_options.example_id_dump_interval
+                    example_id_dump_options.example_id_dump_interval
         self._dump_threshold = \
-                example_id_dump_options.example_id_dump_threshold
+                    example_id_dump_options.example_id_dump_threshold
         self._fly_example_id_batch = []
         self._example_id_sync_finished = False
         self._latest_dump_timestamp = time.time()
         self._example_id_manager = \
-                ExampleIdManager(kvstore, data_source, partition_id, False)
+                    ExampleIdManager(kvstore, data_source, partition_id, False)
         last_index = self._example_id_manager.get_last_dumped_index()
         self._next_index = 0 if last_index is None else last_index + 1
         self._example_id_dumper = None
@@ -130,14 +128,13 @@ class ExampleIdDumperManager(object):
         with self._lock:
             if self._example_id_sync_finished:
                 raise RuntimeError(
-                        "sync example for partition {} has "\
-                        "finished".format(self._partition_id)
-                    )
-            assert example_id_batch.partition_id == self._partition_id, \
-                "the partition id of recv example batch mismatch with " \
-                "dumping example id: {} != {}".format(
-                    self._partition_id, example_id_batch.partition_id
+                    f"sync example for partition {self._partition_id} has finished"
                 )
+
+            assert (
+                example_id_batch.partition_id == self._partition_id
+            ), f"the partition id of recv example batch mismatch with dumping example id: {self._partition_id} != {example_id_batch.partition_id}"
+
             if example_id_batch.begin_index != self._next_index:
                 return False, self._next_index
             num_example = example_id_batch.example_id_num
@@ -192,12 +189,14 @@ class ExampleIdDumperManager(object):
 
     def _need_finish_dumper(self, is_batch_finished):
         duration_since_dump = time.time() - self._latest_dump_timestamp
-        if self._example_id_dumper is not None and \
-                (self._example_id_dumper.check_dumper_full() or \
-                 is_batch_finished or
-                 0 < self._dump_interval <= duration_since_dump):
-            return True
-        return False
+        return bool(
+            self._example_id_dumper is not None
+            and (
+                self._example_id_dumper.check_dumper_full()
+                or is_batch_finished
+                or 0 < self._dump_interval <= duration_since_dump
+            )
+        )
 
     def _is_batch_finished(self):
         with self._lock:

@@ -80,10 +80,8 @@ class LocalTrainerMasterClient(object):
                 block = DataBlockInfo(block_id, fullname)
                 blocks.append(block)
             self._block_map = {block.block_id: block for block in blocks}
-            for rnd in range(epoch_num):
-                for block in blocks:
-                    self._block_queue.append(block)
-
+            for _ in range(epoch_num):
+                self._block_queue.extend(iter(blocks))
         self._status = tm_pb.MasterStatus.INITIALING
         if skip_datablock_checkpoint:
             self._status = tm_pb.MasterStatus.RUNNING
@@ -92,9 +90,9 @@ class LocalTrainerMasterClient(object):
         if self._status != tm_pb.MasterStatus.RUNNING:
             response = tm_pb.DataBlockResponse()
             response.status.code = \
-                   common_pb.STATUS_WAIT_FOR_SYNCING_CHECKPOINT
+                       common_pb.STATUS_WAIT_FOR_SYNCING_CHECKPOINT
             response.status.error_message = \
-                    "must sync data checkpoint before alloc"
+                        "must sync data checkpoint before alloc"
             return response
         if self._role == 'leader':
             assert block_id is None, "Must not set block_id for leader"
@@ -108,9 +106,7 @@ class LocalTrainerMasterClient(object):
             return None
 
         assert block_id, "Must set block_id for follower"
-        if block_id not in self._block_map:
-            return None
-        return self._block_map[block_id]
+        return None if block_id not in self._block_map else self._block_map[block_id]
 
     def get_data_block_checkpoint(self, appid):
         if self._status != tm_pb.MasterStatus.RUNNING:

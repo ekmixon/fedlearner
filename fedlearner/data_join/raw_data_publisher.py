@@ -36,11 +36,11 @@ class RawDataPublisher(object):
             return
         if timestamps is not None and len(fpaths) != len(timestamps):
             raise RuntimeError("the number of raw data file "\
-                               "and timestamp mismatch")
+                                   "and timestamp mismatch")
         new_raw_data_pubs = []
         for index, fpath in enumerate(fpaths):
             if not gfile.Exists(fpath):
-                raise ValueError('{} is not existed'.format(fpath))
+                raise ValueError(f'{fpath} is not existed')
             raw_data_pub = dj_pb.RawDatePub(
                     raw_data_meta=dj_pb.RawDataMeta(
                         file_path=fpath,
@@ -60,7 +60,7 @@ class RawDataPublisher(object):
                                                      next_pub_index)
             if self._check_finish_tag(partition_id, next_pub_index-1):
                 logging.warning("partition %d has been published finish tag "\
-                                "at index %d", partition_id, next_pub_index-1)
+                                    "at index %d", partition_id, next_pub_index-1)
                 break
             kvstore_key = common.raw_data_pub_kvstore_key(
                                                     self._raw_data_pub_dir,
@@ -68,7 +68,7 @@ class RawDataPublisher(object):
                                                     next_pub_index)
             if self._kvstore.cas(kvstore_key, None, data):
                 logging.info("Success publish %s at index %d for partition"\
-                             "%d", data, next_pub_index, partition_id)
+                                 "%d", data, next_pub_index, partition_id)
                 next_pub_index += 1
                 item_index += 1
                 if item_index < len(new_raw_data_pubs):
@@ -76,7 +76,7 @@ class RawDataPublisher(object):
                     data = text_format.MessageToString(raw_data_pub)
         if item_index < len(new_raw_data_pubs) - 1:
             logging.warning("%d files are not published since meet finish "\
-                            "tag for partition %d. list following",
+                                "tag for partition %d. list following",
                             len(new_raw_data_pubs) - item_index, partition_id)
             for idx, pub in enumerate(new_raw_data_pubs[item_index:]):
                 logging.warning("%d. %s", idx, pub.raw_data_meta.file_path)

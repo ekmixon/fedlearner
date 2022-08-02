@@ -31,10 +31,8 @@ class ExampleIdBatch(ItemBatch):
         self._partition_id = partition_id
         self._begin_index = begin_index
 
-        self._feature_buf = dict()
         self._key_feature = 'example_id'
-        for fn in djc.SYNC_ALLOWED_OPTIONAL_FIELDS:
-            self._feature_buf[fn] = []
+        self._feature_buf = {fn: [] for fn in djc.SYNC_ALLOWED_OPTIONAL_FIELDS}
 
     def append(self, item):
         for fn in djc.SYNC_ALLOWED_OPTIONAL_FIELDS:
@@ -47,15 +45,14 @@ class ExampleIdBatch(ItemBatch):
         return self._begin_index
 
     def make_packed_lite_example_ids(self):
-        features = {}
-        for name, value_list in self._feature_buf.items():
-            if len(value_list) > 0:
-                if isinstance(value_list[0], int):
-                    features[name] = tf.train.Feature(
-                        int64_list=tf.train.Int64List(value=value_list))
-                else:
-                    features[name] = tf.train.Feature(
-                        bytes_list=tf.train.BytesList(value=value_list))
+        features = {
+            name: tf.train.Feature(int64_list=tf.train.Int64List(value=value_list))
+            if isinstance(value_list[0], int)
+            else tf.train.Feature(bytes_list=tf.train.BytesList(value=value_list))
+            for name, value_list in self._feature_buf.items()
+            if len(value_list) > 0
+        }
+
         tf_features = tf.train.Features(feature=features)
         serde_lite_examples = dj_pb.LiteExampleIds(
             partition_id=self._partition_id,

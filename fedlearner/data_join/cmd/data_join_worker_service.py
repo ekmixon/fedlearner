@@ -101,10 +101,12 @@ if __name__ == "__main__":
                              'Each field will be stripped.')
     args = parser.parse_args()
     set_logger()
-    optional_fields = list(
-        field for field in map(str.strip, args.optional_fields.split(','))
+    optional_fields = [
+        field
+        for field in map(str.strip, args.optional_fields.split(','))
         if field != ''
-    )
+    ]
+
     worker_options = dj_pb.DataJoinWorkerOptions(
             use_mock_etcd=(args.kvstore_type == 'mock'),
             raw_data_options=dj_pb.RawDataOptions(

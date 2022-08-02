@@ -35,12 +35,12 @@ class Embedding(object):
         self._use_fid_v2 = config['use_fid_v2']
 
         self._weights = []
-        with tf.variable_scope("lagrange_embedding_pooling/%s"%config['name']):
+        with tf.variable_scope(f"lagrange_embedding_pooling/{config['name']}"):
             for i in range(config['num_groups']):
                 shards = []
                 for shard_id in range(self._num_shards):
                     with tf.device(self._devices[shard_id]), \
-                                   tf.variable_scope('shard_%d'%shard_id):
+                                       tf.variable_scope('shard_%d'%shard_id):
                         weight_name = 'embedding_weight_' + '_'.join([
                             str(j) for j, k in enumerate(
                                 config['slot_weight_index']) if k == i])
@@ -77,22 +77,29 @@ class Embedding(object):
         fmt = '%s_%d_'%(name, shard_id)
 
         num_unique_fids_per_partition = features.pop(
-            fmt+'num_unique_fids_per_partition')
-        fid_to_unique_index = features.pop(fmt+'fid_to_unique_index')
-        unique_fid_hash = features.pop(fmt+'unique_fid_hash')
+            f'{fmt}num_unique_fids_per_partition'
+        )
+
+        fid_to_unique_index = features.pop(f'{fmt}fid_to_unique_index')
+        unique_fid_hash = features.pop(f'{fmt}unique_fid_hash')
         assert isinstance(unique_fid_hash, tuple)
-        batch_size = features.pop(fmt+'batch_size')
-        instance_ids = features.pop(fmt+'instance_ids')
-        fids = features.pop(fmt+'fids')
+        batch_size = features.pop(f'{fmt}batch_size')
+        instance_ids = features.pop(f'{fmt}instance_ids')
+        fids = features.pop(f'{fmt}fids')
 
         bwd_deps = [
-            tf.identity(num_unique_fids_per_partition,
-                        name="%s_Identity_num_unique_fids_per_partition"%(fmt)),
-            tf.identity(fid_to_unique_index,
-                        name="%s_Identity_fid_to_unique_index"%(fmt)),] + [
-            tf.identity(t, name="%s_Identity_unique_fid_hash_%d"%(fmt, i)) \
-                for (i, t) in enumerate(unique_fid_hash)
+            tf.identity(
+                num_unique_fids_per_partition,
+                name=f"{fmt}_Identity_num_unique_fids_per_partition",
+            ),
+            tf.identity(
+                fid_to_unique_index, name=f"{fmt}_Identity_fid_to_unique_index"
+            ),
+        ] + [
+            tf.identity(t, name="%s_Identity_unique_fid_hash_%d" % (fmt, i))
+            for (i, t) in enumerate(unique_fid_hash)
         ]
+
 
         with tf.control_dependencies(bwd_deps):
             output = operator.lagrange_lite_ops.lagrange_embedding_pooling(

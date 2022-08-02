@@ -65,13 +65,13 @@ class ItemBatchSeqProcessor(object):
             if next_index is None:
                 return False
             if self._process_finished and \
-                    self._last_index is not None and \
-                    next_index > self._last_index:
+                        self._last_index is not None and \
+                        next_index > self._last_index:
                 return False
             if self._check_index_rollback(next_index):
                 return True
             return self._max_flying_item <= 0 or \
-                    self._flying_item_count < self._max_flying_item
+                        self._flying_item_count < self._max_flying_item
 
     def set_input_finished(self):
         with self._lock:
@@ -99,8 +99,9 @@ class ItemBatchSeqProcessor(object):
         return 'ItemBatchSeqProcessor'
 
     def _make_item_batch(self, begin_index):
-        raise NotImplementedError("_make_item_batch is not implemented "\
-                                  "in {}".format(self.name()))
+        raise NotImplementedError(
+            f"_make_item_batch is not implemented in {self.name()}"
+        )
 
     def make_processor(self, next_index):
         input_finished = False
@@ -123,11 +124,11 @@ class ItemBatchSeqProcessor(object):
         for batch, batch_finished in self._make_inner_generator(next_index):
             if batch is not None:
                 if len(batch) > 0:
-                    latency_mn = '{}.produce.latency'.format(self.name())
+                    latency_mn = f'{self.name()}.produce.latency'
                     metrics.emit_timer(name=latency_mn,
                                        value=time.time()-start_tm,
                                        tags=self._get_metrics_tags())
-                    store_mn = '{}.produce.index'.format(self.name())
+                    store_mn = f'{self.name()}.produce.index'
                     metrics.emit_store(name=store_mn,
                                        value=batch.begin_index+len(batch)-1,
                                        tags=self._get_metrics_tags())
@@ -150,8 +151,9 @@ class ItemBatchSeqProcessor(object):
         return {}
 
     def _make_inner_generator(self, next_index):
-        raise NotImplementedError("_make_inner_generator is not "\
-                                  "implemented in {}".format(self.name()))
+        raise NotImplementedError(
+            f"_make_inner_generator is not implemented in {self.name()}"
+        )
 
     def fetch_item_batch_by_index(self, next_index, hint_idx=None):
         with self._lock:
@@ -187,13 +189,12 @@ class ItemBatchSeqProcessor(object):
         with self._lock:
             skip_batch = 0
             while staless_index is not None and \
-                    len(self._batch_queue) > skip_batch:
+                        len(self._batch_queue) > skip_batch:
                 batch = self._batch_queue[skip_batch]
-                if batch.begin_index + len(batch) -1 <= staless_index:
-                    skip_batch += 1
-                    self._flying_item_count -= len(batch)
-                else:
+                if batch.begin_index + len(batch) - 1 > staless_index:
                     break
+                skip_batch += 1
+                self._flying_item_count -= len(batch)
             self._batch_queue = self._batch_queue[skip_batch:]
             return skip_batch
 

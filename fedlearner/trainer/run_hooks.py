@@ -38,7 +38,7 @@ class GlobalStepMetricTensorHook(tf.train.SessionRunHook):
                 raise ValueError("uninvalid metric name, "
                                  "name: %s, type: %s"%(name, type(name)))
             if not tf.is_tensor(tensor) \
-                or not (tensor.dtype.is_floating or tensor.dtype.is_integer):
+                    or not (tensor.dtype.is_floating or tensor.dtype.is_integer):
                 raise ValueError("uninvalid metric tensor, "
                                  "name: %s, tensor: %s" % (name, tensor))
             self._metric_names.append(name)
@@ -55,20 +55,20 @@ class GlobalStepMetricTensorHook(tf.train.SessionRunHook):
                        "to current graph %s." % (tensor, g))
         self._next_step = None
         self._global_step_tensor = \
-            training_util._get_or_create_global_step_read() # pylint: disable=protected-access
+                training_util._get_or_create_global_step_read() # pylint: disable=protected-access
         if self._global_step_tensor is None:
             raise RuntimeError("Global step should be created "
                                "to use GlobalStepTensorStatsHook.")
         self._global_step_key = "global_step"
         i = 0
         while self._global_step_key in self._tensor_dict:
-            self._global_step_key = "global_step_" + str(i)
+            self._global_step_key = f"global_step_{str(i)}"
             i += 1
         self._tensor_dict[self._global_step_key] = self._global_step_tensor
 
     def before_run(self, run_context):
         self._should_trigger = self._next_step is not None \
-            and self._timer.should_trigger_for_step(self._next_step)
+                and self._timer.should_trigger_for_step(self._next_step)
         if self._should_trigger:
             return tf.train.SessionRunArgs(fetches=self._tensor_dict)
         return tf.train.SessionRunArgs(fetches=self._global_step_tensor)
@@ -165,20 +165,20 @@ class TraceStatsHook(tf.train.SessionRunHook):
         for dev_stats in step_stats.dev_stats:
             for node_stats in dev_stats.node_stats:
                 # op event
-                ev = dict()
-                ev["op_name"] = node_stats.node_name
+                ev = {"op_name": node_stats.node_name}
                 if node_stats.node_name == "RecvTensor":
                     op = "RecvTensor"
                 else:
                     _, op, _ = self._parse_op_label(node_stats.timeline_label)
                 ev["op"] = op
                 ev["duration"] = (node_stats.op_end_rel_micros \
-                    - node_stats.op_start_rel_micros) / 1000
+                        - node_stats.op_start_rel_micros) / 1000
                 # mem event
-                num_bytes = 0
-                for output in node_stats.output:
-                    num_bytes += output.tensor_description\
-                        .allocation_description.requested_bytes
+                num_bytes = sum(
+                    output.tensor_description.allocation_description.requested_bytes
+                    for output in node_stats.output
+                )
+
                 ev["output_bytes"] = num_bytes
                 events.append(ev)
 
@@ -186,7 +186,7 @@ class TraceStatsHook(tf.train.SessionRunHook):
             # emit op
             pipe.gauge("trainer.trace.op_count", len(events))
             events.sort(key=lambda ev: ev["duration"], reverse=True)
-            for ev in events[0:self._timing_topn]:
+            for ev in events[:self._timing_topn]:
                 if ev["duration"] < self._timing_min_ms:
                     break
                 pipe.timing("trainer.trace.op_timing",
@@ -195,7 +195,7 @@ class TraceStatsHook(tf.train.SessionRunHook):
 
             # emit memory
             events.sort(key=lambda ev: ev["output_bytes"], reverse=True)
-            for ev in events[0:self._memory_topn]:
+            for ev in events[:self._memory_topn]:
                 if ev["output_bytes"] < self._memory_min_bytes:
                     break
                 pipe.gauge("trainer.trace.op_output_bytes",
@@ -212,8 +212,5 @@ class TraceStatsHook(tf.train.SessionRunHook):
         if match is None:
             return 'unknown', 'unknown', []
         nn, op, inputs = match.groups()
-        if not inputs:
-            inputs = []
-        else:
-            inputs = inputs.split(', ')
+        inputs = inputs.split(', ') if inputs else []
         return nn, op, inputs

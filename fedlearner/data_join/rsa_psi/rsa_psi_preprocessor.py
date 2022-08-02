@@ -166,7 +166,7 @@ class RsaPsiPreProcessor(object):
         os._exit(-1) # pylint: disable=protected-access
 
     def _id_batch_fetcher_name(self):
-        return self._repr + ':id_batch_fetcher'
+        return f'{self._repr}:id_batch_fetcher'
 
     def _wakeup_id_batch_fetcher(self):
         self._worker_map[self._id_batch_fetcher_name()].wakeup()
@@ -206,7 +206,7 @@ class RsaPsiPreProcessor(object):
         return False
 
     def _psi_rsa_signer_name(self):
-        return self._repr + ':psi_rsa_signer'
+        return f'{self._repr}:psi_rsa_signer'
 
     def _wakeup_psi_rsa_signer(self):
         self._worker_map[self._psi_rsa_signer_name()].wakeup()
@@ -220,14 +220,12 @@ class RsaPsiPreProcessor(object):
 
     def _psi_rsa_sign_fn(self):
         next_index = self._sort_run_dumper.get_next_index_to_dump()
-        sign_cnt = 0
         signed_index = None
-        for signed_batch in self._psi_rsa_signer.make_processor(next_index):
+        for sign_cnt, signed_batch in enumerate(self._psi_rsa_signer.make_processor(next_index), start=1):
             logging.debug("%s sign batch begin at %d, len %d. wakeup %s",
                           self._psi_rsa_signer_name(),
                           signed_batch.begin_index, len(signed_batch),
                           self._sort_run_dumper_name())
-            sign_cnt += 1
             if signed_batch is not None:
                 signed_index = signed_batch.begin_index + len(signed_batch) - 1
             if sign_cnt % 16 == 0:
@@ -240,7 +238,7 @@ class RsaPsiPreProcessor(object):
                 not self._sort_run_dumper.is_dump_finished()
 
     def _sort_run_dumper_name(self):
-        return self._repr + ':sort_run_dumper'
+        return f'{self._repr}:sort_run_dumper'
 
     def _wakeup_sort_run_dumper(self):
         self._worker_map[self._sort_run_dumper_name()].wakeup()
@@ -257,12 +255,11 @@ class RsaPsiPreProcessor(object):
         sort_run_size = max_flying_item // 2
         while sort_run_size <= 0 or total_item_num < sort_run_size:
             signed_finished, batch, hint_index = \
-                rsi_signer.fetch_item_batch_by_index(next_index, hint_index)
+                    rsi_signer.fetch_item_batch_by_index(next_index, hint_index)
             if batch is None:
                 break
             assert next_index == batch.begin_index
-            for item in batch:
-                items_buffer.append(item)
+            items_buffer.extend(iter(batch))
             next_index += len(batch)
             total_item_num += len(batch)
         sorted_items_buffer = sorted(items_buffer, key=lambda item: item[0])
@@ -299,11 +296,11 @@ class RsaPsiPreProcessor(object):
         flying_begin_index = rsa_signer.get_flying_begin_index()
         dump_cands_num = 0
         if flying_begin_index is not None and next_index is not None and \
-                (flying_begin_index <= next_index <
+                    (flying_begin_index <= next_index <
                     flying_begin_index + flying_item_cnt):
             dump_cands_num = flying_item_cnt - (next_index - flying_begin_index)
         return not dump_finished and \
-                (signed_finished or
+                    (signed_finished or
                  (dump_cands_num >= (2 << 20) or
                   (max_flying_item > 2 and
                     dump_cands_num > max_flying_item // 2)) or
@@ -317,7 +314,7 @@ class RsaPsiPreProcessor(object):
         return False
 
     def _sort_run_merger_name(self):
-        return self._repr + ':sort_run_merger'
+        return f'{self._repr}:sort_run_merger'
 
     def _sort_run_merge_fn(self):
         sort_runs = self._sort_run_dumper.get_all_sort_runs()

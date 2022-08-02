@@ -171,27 +171,21 @@ INDEX_MAP = {'metrics': METRICS_MAPPINGS,
 
 def get_es_template(index_type, es_version):
     index_name = INDEX_NAME[index_type]
-    template = {
-        "index_patterns": ["{}-*".format(index_name), index_name],
+    return {
+        "index_patterns": [f"{index_name}-*", index_name],
         "settings": {
             "index": {
                 "codec": "best_compression",
-                "routing": {
-                    "allocation": {
-                        "total_shards_per_node": "1"
-                    }
-                },
+                "routing": {"allocation": {"total_shards_per_node": "1"}},
                 "refresh_interval": "60s",
                 "number_of_shards": "1",
                 "number_of_replicas": "1",
             }
-        }
+        },
+        'mappings': {'_doc': INDEX_MAP[index_type]}
+        if es_version == 6
+        else INDEX_MAP[index_type],
     }
-    if es_version == 6:
-        template['mappings'] = {'_doc': INDEX_MAP[index_type]}
-    else:
-        template['mappings'] = INDEX_MAP[index_type]
-    return template
 
 
 def convert_to_datetime(value, enable_tz=False):

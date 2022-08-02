@@ -46,13 +46,13 @@ class DataPortalJobManager(object):
         self._sync_portal_manifest()
         self._sync_processing_job()
         self._publisher = \
-            RawDataPublisher(kvstore,
+                RawDataPublisher(kvstore,
                 self._portal_manifest.raw_data_publish_dir)
         self._long_running = long_running
         self._finished = False
         assert self._portal_manifest is not None
         self._processed_fpath = set()
-        for job_id in range(0, self._portal_manifest.next_job_id):
+        for job_id in range(self._portal_manifest.next_job_id):
             job = self._sync_portal_job(job_id)
             assert job is not None and job.job_id == job_id
             for fpath in job.fpaths:
@@ -60,9 +60,12 @@ class DataPortalJobManager(object):
         self._job_part_map = {}
         if self._portal_manifest.processing_job_id >= 0:
             self._check_processing_job_finished()
-        if self._portal_manifest.processing_job_id < 0:
-            if not self._launch_new_portal_job() and not self._long_running:
-                self._finished = True
+        if (
+            self._portal_manifest.processing_job_id < 0
+            and not self._launch_new_portal_job()
+            and not self._long_running
+        ):
+            self._finished = True
 
     def get_portal_manifest(self):
         with self._lock:
@@ -158,16 +161,18 @@ class DataPortalJobManager(object):
     def _create_map_task(self, rank_id, partition_id):
         assert self._processing_job is not None
         job = self._processing_job
-        map_fpaths = []
-        for fpath in job.fpaths:
-            if hash(fpath) % self._output_partition_num == partition_id:
-                map_fpaths.append(fpath)
+        map_fpaths = [
+            fpath
+            for fpath in job.fpaths
+            if hash(fpath) % self._output_partition_num == partition_id
+        ]
+
         task_name = '{}-dp_portal_job_{:08}-part-{:04}-map'.format(
                 self._portal_manifest.name, job.job_id, partition_id
             )
         logging.info("Data portal worker-%d is allocated map task %s for "\
-                     "partition %d of job %d. the map task has %d files"\
-                     "-----------------\n", rank_id, task_name,
+                         "partition %d of job %d. the map task has %d files"\
+                         "-----------------\n", rank_id, task_name,
                      partition_id, job.job_id, len(map_fpaths))
         for seq, fpath in enumerate(map_fpaths):
             logging.info("%d. %s", seq, fpath)
@@ -213,10 +218,10 @@ class DataPortalJobManager(object):
         for partition_id in range(self._output_partition_num):
             part_job = self._sync_job_part(job_id, partition_id)
             if part_job.part_state == src_state and \
-                    alloc_partition_id is None:
+                        alloc_partition_id is None:
                 alloc_partition_id = partition_id
             if part_job.part_state == target_state and \
-                    part_job.rank_id == rank_id:
+                        part_job.rank_id == rank_id:
                 alloc_partition_id = partition_id
                 break
         if alloc_partition_id is None:
@@ -307,8 +312,7 @@ class DataPortalJobManager(object):
         #   ['folder', 'file1.txt', 'folder/file2.txt']
         # and then listdir('root/folder') returns
         #   ['file2.txt']
-        filenames = set(
-            path.join(root, i) for i in gfile.ListDirectory(root))
+        filenames = {path.join(root, i) for i in gfile.ListDirectory(root)}
         res = []
         for fname in filenames:
             succ = path.join(path.dirname(fname), '_SUCCESS')
@@ -354,13 +358,7 @@ class DataPortalJobManager(object):
             basename = splits[-1]
             dirnames = splits[:-1]
 
-            # ignore files and dirs starting with _ or .
-            # for example: _SUCCESS or ._SUCCESS.crc
-            ignore = False
-            for name in splits:
-                if name.startswith('_') or name.startswith('.'):
-                    ignore = True
-                    break
+            ignore = any(name.startswith('_') or name.startswith('.') for name in splits)
             if ignore:
                 num_ignored += 1
                 continue
@@ -395,16 +393,20 @@ class DataPortalJobManager(object):
                 'in this iteration', rest_folder)
         else:
             rest_fpaths = []
-            if (self._files_per_job_limit <= 0 or
-                self._files_per_job_limit > self._max_files_per_job) and \
-                sum([len(v) for _, v in by_folder.items()]) > \
-                    self._max_files_per_job:
+            if (
+                (
+                    self._files_per_job_limit <= 0
+                    or self._files_per_job_limit > self._max_files_per_job
+                )
+            ) and sum(
+                len(v) for _, v in by_folder.items()
+            ) > self._max_files_per_job:
                 logging.info("Number of files exceeds limit, processing "
                              "%d per job", self._max_files_per_job)
                 self._files_per_job_limit = self._max_files_per_job
             for _, v in sorted(by_folder.items(), key=lambda x: x[0]):
                 if self._files_per_job_limit and rest_fpaths and \
-                        len(rest_fpaths) + len(v) > self._files_per_job_limit:
+                            len(rest_fpaths) + len(v) > self._files_per_job_limit:
                     break
                 rest_fpaths.extend(v)
 
@@ -418,8 +420,8 @@ class DataPortalJobManager(object):
 
     def _sync_job_part(self, job_id, partition_id):
         if partition_id not in self._job_part_map or \
-                self._job_part_map[partition_id] is None or \
-                self._job_part_map[partition_id].job_id != job_id:
+                    self._job_part_map[partition_id] is None or \
+                    self._job_part_map[partition_id].job_id != job_id:
             kvstore_key = common.portal_job_part_kvstore_key(self._portal_name,
                                                        job_id, partition_id)
             data = self._kvstore.get_data(kvstore_key)
@@ -430,7 +432,7 @@ class DataPortalJobManager(object):
                     )
             else:
                 self._job_part_map[partition_id] = \
-                    text_format.Parse(data, dp_pb.PortalJobPart(),
+                        text_format.Parse(data, dp_pb.PortalJobPart(),
                                       allow_unknown_field=True)
         return self._job_part_map[partition_id]
 
@@ -468,7 +470,7 @@ class DataPortalJobManager(object):
             self._update_portal_manifest(new_portal_manifest)
         if processing_job is not None:
             logging.info("Data Portal job %d has finished. Processed %d "\
-                         "following fpaths\n------------\n",
+                             "following fpaths\n------------\n",
                          processing_job.job_id, len(processing_job.fpaths))
             for seq, fpath in enumerate(processing_job.fpaths):
                 logging.info("%d. %s", seq, fpath)
@@ -520,7 +522,7 @@ class DataPortalJobManager(object):
                 publish_fpaths = self._publish_streaming_raw_data(partition_id,
                                                                  dpath, fnames)
             logging.info("Data Portal Master publish %d file for partition "\
-                         "%d of streaming job %d\n----------\n",
+                             "%d of streaming job %d\n----------\n",
                          len(publish_fpaths), partition_id, job_id)
             for seq, fpath in enumerate(publish_fpaths):
                 logging.info("%d. %s", seq, fpath)

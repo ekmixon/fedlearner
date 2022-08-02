@@ -26,8 +26,10 @@ class ClusterServer():
                  extra_reserve_jobs=None):
         self._job_name = job_name
         self._task_index = task_index
-        self._extra_reserve_jobs = set(extra_reserve_jobs) \
-            if extra_reserve_jobs is not None else set(["ps"])
+        self._extra_reserve_jobs = (
+            set(extra_reserve_jobs) if extra_reserve_jobs is not None else {"ps"}
+        )
+
         self._create_tf_server(cluster_spec)
 
     def _create_tf_server(self, cluster_spec):
@@ -35,7 +37,7 @@ class ClusterServer():
         self._tf_config.inter_op_parallelism_threads = 64
         self._tf_config.intra_op_parallelism_threads = 64
         self._tf_config.experimental \
-            .share_session_state_in_clusterspec_propagation = True
+                .share_session_state_in_clusterspec_propagation = True
         self._tf_config.rpc_options.compression_algorithm = "gzip"
         self._tf_config.rpc_options.cache_rpc_response = True
         self._tf_config.rpc_options.disable_session_connection_sharing = True
@@ -44,15 +46,15 @@ class ClusterServer():
             address = cluster_spec.task_address(
                 self._job_name, self._task_index)
             self._tf_server = \
-                tf.distribute.Server({"server": {
+                    tf.distribute.Server({"server": {
                                         self._task_index: address}
                                      },
                                      protocol="grpc",
                                      config=self._tf_config)
-            self._tf_target = "grpc://" + address
+            self._tf_target = f"grpc://{address}"
         except ValueError:
             self._tf_server = \
-                tf.distribute.Server({"server":
+                    tf.distribute.Server({"server":
                                         {self._task_index: "localhost:0"}
                                      },
                                      protocol="grpc",
@@ -60,10 +62,10 @@ class ClusterServer():
             self._tf_target = self._tf_server.target
 
         # modify cluster_spec
-        cluster_dict = dict()
-        cluster_dict[self._job_name] = {
-            self._task_index: self._tf_target[len("grpc://"):]
+        cluster_dict = {
+            self._job_name: {self._task_index: self._tf_target[len("grpc://") :]}
         }
+
         for job_name in cluster_spec.jobs:
             if job_name == self._job_name:
                 continue

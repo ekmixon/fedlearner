@@ -91,9 +91,8 @@ class Tags:
             for k, v in tags.items():
                 if not isinstance(k, str):
                     continue
-                k = k.strip()
-                if k:
-                    data += ",%s=%s"%(k, str(v))
+                if k := k.strip():
+                    data += f",{k}={str(v)}"
             return data[1:]
 
         raise TypeError("tags type not 'Tags' or 'dict'")
@@ -179,7 +178,7 @@ class _ClientBase():
 
     def incr(self, stat, count=1, tags=None, rate=1):
         """Increment a stat by `count`."""
-        self._send_stat(stat, "%s|c"%count, tags, rate)
+        self._send_stat(stat, f"{count}|c", tags, rate)
 
     def decr(self, stat, count=1, tags=None, rate=1):
         """Decrement a stat by `count`."""
@@ -188,19 +187,18 @@ class _ClientBase():
     def gauge(self, stat, value, tags=None, delta=False, rate=1):
         """Set a gauge value."""
         if value < 0 and not delta:
-            if rate < 1:
-                if random.random() > rate:
-                    return
+            if rate < 1 and random.random() > rate:
+                return
             with self.pipeline() as pipe:
                 pipe._send_stat(stat, "0|g", tags, 1) #pylint: disable=protected-access
-                pipe._send_stat(stat, "%s|g"%value, tags, 1) #pylint: disable=protected-access
+                pipe._send_stat(stat, f"{value}|g", tags, 1)
         else:
             prefix = '+' if delta and value >= 0 else ''
-            self._send_stat(stat, "%s%s|g"%(prefix, value), tags, rate)
+            self._send_stat(stat, f"{prefix}{value}|g", tags, rate)
 
     def sets(self, stat, value, tags=None, rate=1):
         """Set a set value."""
-        self._send_stat(stat, "%s|s" % value, tags, rate)
+        self._send_stat(stat, f"{value}|s", tags, rate)
 
     def pipeline(self):
         return Pipeline(self)
@@ -212,7 +210,7 @@ class _ClientBase():
         if rate < 1:
             if random.random() > rate:
                 return None
-            value = "%s|@%s" % (value, rate)
+            value = f"{value}|@{rate}"
 
         return self._format(stat, tags, value)
 
@@ -224,13 +222,12 @@ class _ClientBase():
         if not stat:
             return None
         if self._prefix:
-            stat = self._prefix + "." + stat
+            stat = f"{self._prefix}.{stat}"
 
-        tagstr = Tags.to_str(tags)
-        if tagstr:
-            stat = stat + "," +  tagstr
+        if tagstr := Tags.to_str(tags):
+            stat = f"{stat},{tagstr}"
 
-        return stat + ":" + value
+        return f"{stat}:{value}"
 
 
 class Client(_ClientBase):
@@ -251,7 +248,7 @@ class Client(_ClientBase):
         elif u.scheme == "":
             raise ValueError("url scheme not found")
         else:
-            raise ValueError("unknow url scheme: %s"%(u.scheme))
+            raise ValueError(f"unknow url scheme: {u.scheme}")
 
         self._closed = False
         super(Client, self).__init__(prefix)

@@ -51,14 +51,13 @@ class SortRunMeta(object):
     @classmethod
     def decode_sort_run_meta_from_fname(cls, fname):
         if not fname.endswith(DoneFileSuffix):
-            raise RuntimeError(
-                    "fname of SortRun should endwith {}".format(DoneFileSuffix)
-                )
+            raise RuntimeError(f"fname of SortRun should endwith {DoneFileSuffix}")
         segs = re.split('\.|-', fname[:-len(DoneFileSuffix)]) # pylint: disable=anomalous-backslash-in-string
         if len(segs) != 3:
-            raise RuntimeError("fname: {} should format as "\
-                               "process_index.start_index-end_index.{}"\
-                               .format(fname, DoneFileSuffix))
+            raise RuntimeError(
+                f"fname: {fname} should format as process_index.start_index-end_index.{DoneFileSuffix}"
+            )
+
         return SortRunMeta(int(segs[0]), int(segs[1]), int(segs[2]))
 
     def encode_sort_run_fname(self):
@@ -187,18 +186,19 @@ class SortRunDumper(object):
         self._fly_sort_run_dumper = None
         if self._dumped_process_index is None:
             self._dumped_sort_run_metas = \
-                    [SortRunMeta.decode_sort_run_meta_from_fname(fname)
+                        [SortRunMeta.decode_sort_run_meta_from_fname(fname)
                      for fname in self._list_dumper_output_dir()]
             self._dumped_sort_run_metas.sort()
-            if len(self._dumped_sort_run_metas) == 0:
-                self._dumped_process_index = -1
-            else:
-                self._dumped_process_index = \
-                        self._dumped_sort_run_metas[-1].process_index
+            self._dumped_process_index = (
+                self._dumped_sort_run_metas[-1].process_index
+                if self._dumped_sort_run_metas
+                else -1
+            )
+
         with self._lock:
             self._next_index_to_dump = \
-                    0 if len(self._dumped_sort_run_metas) == 0 \
-                    else self._dumped_sort_run_metas[-1].end_index + 1
+                        0 if len(self._dumped_sort_run_metas) == 0 \
+                        else self._dumped_sort_run_metas[-1].end_index + 1
 
     def _list_dumper_output_dir(self):
         output_dir = self._get_output_dir()

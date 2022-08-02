@@ -67,9 +67,9 @@ def model_fn(model, features, labels, mode):
     """
     global_step = tf.train.get_or_create_global_step()
 
-    x = dict()
+    x = {}
     for i in range(512):
-        x_name = "x_{}".format(i)
+        x_name = f"x_{i}"
         x[x_name] = features[x_name]
 
 
@@ -84,10 +84,13 @@ def model_fn(model, features, labels, mode):
     embed_output = tf.concat(
         [
             tf.nn.embedding_lookup_sparse(
-                embeddings[i], x['x_{}'.format(i)], sp_weights=None,
-                combiner='mean')
-            for i in range(512)],
-        axis=1)
+                embeddings[i], x[f'x_{i}'], sp_weights=None, combiner='mean'
+            )
+            for i in range(512)
+        ],
+        axis=1,
+    )
+
 
     output_size = num_slot * embed_size
     fc1_size, fc2_size = 256, 64

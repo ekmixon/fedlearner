@@ -13,18 +13,18 @@ sys.setrecursionlimit(5000000)
 
 
 def symKL_objective(lam10, lam20, lam11, lam21, u, v, d, g_norm_square):
-    objective = np.float32((d - np.float32(1)) * (lam20 + u) / (lam21 + v) \
-                           + (d - np.float32(1)) * (lam21 + v) / (lam20 + u) \
-                           + (lam10 + u + g_norm_square) / (lam11 + v) \
-                           + (lam11 + v + g_norm_square) / (lam10 + u))
-
-    return objective
+    return np.float32(
+        (d - np.float32(1)) * (lam20 + u) / (lam21 + v)
+        + (d - np.float32(1)) * (lam21 + v) / (lam20 + u)
+        + (lam10 + u + g_norm_square) / (lam11 + v)
+        + (lam11 + v + g_norm_square) / (lam10 + u)
+    )
 
 
 def symKL_objective_zero_uv(lam10, lam11, g_norm_square):
-    objective = np.float32((lam10 + g_norm_square) / lam11 \
-        + (lam11 + g_norm_square) / lam10)
-    return objective
+    return np.float32(
+        (lam10 + g_norm_square) / lam11 + (lam11 + g_norm_square) / lam10
+    )
 
 
 def solve_isotropic_covariance(u, v, d, g_norm_square, p, P, \
@@ -53,29 +53,23 @@ def solve_isotropic_covariance(u, v, d, g_norm_square, p, P, \
         for i in range(NUM_CANDIDATE):
             if i % 3 == ordering[0]:
                 # print('a')
-                if lam20_init:  # if we pass an initialization
-                    lam20 = lam20_init
-                    # print('here')
-                else:
-                    lam20 = np.float32(random.random() * P / \
-                                       (np.float32(1.0) - p) / d)
+                lam20 = lam20_init or np.float32(
+                    random.random() * P / (np.float32(1.0) - p) / d
+                )
+
                 lam10, lam11 = None, None
-                # print('lam21', lam21)
+                            # print('lam21', lam21)
             elif i % 3 == ordering[1]:
                 # print('b')
-                if lam11_init:
-                    lam11 = lam11_init
-                else:
-                    lam11 = np.float32(random.random() * P / p)
+                lam11 = lam11_init or np.float32(random.random() * P / p)
                 lam10, lam20 = None, None
-                # print('lam11', lam11)
+                            # print('lam11', lam11)
             else:
                 # print('c')
-                if lam10_init:
-                    lam10 = lam10_init
-                else:
-                    lam10 = np.float32(random.random() * \
-                                       P / (np.float32(1.0) - p))
+                lam10 = lam10_init or np.float32(
+                    random.random() * P / (np.float32(1.0) - p)
+                )
+
                 lam11, lam20 = None, None
             solutions.append(
                 solve_small_neg(
@@ -93,26 +87,17 @@ def solve_isotropic_covariance(u, v, d, g_norm_square, p, P, \
         # logging.info("solve_isotropic_covariance, u>v")
         for i in range(NUM_CANDIDATE):
             if i % 3 == ordering[0]:
-                if lam21_init:
-                    lam21 = lam21_init
-                else:
-                    lam21 = np.float32(random.random() * P / p / d)
+                lam21 = lam21_init or np.float32(random.random() * P / p / d)
                 lam10, lam11 = None, None
-                # print('lam21', lam21)
+                            # print('lam21', lam21)
             elif i % 3 == ordering[1]:
-                if lam11_init:
-                    lam11 = lam11_init
-                else:
-                    lam11 = np.float32(random.random() * P / p)
+                lam11 = lam11_init or np.float32(random.random() * P / p)
                 lam10, lam21 = None, None
-                # print('lam11', lam11)
+                            # print('lam11', lam11)
             else:
-                if lam10_init:
-                    lam10 = lam10_init
-                else:
-                    lam10 = np.float32(random.random() * P / (1 - p))
+                lam10 = lam10_init or np.float32(random.random() * P / (1 - p))
                 lam11, lam21 = None, None
-                # print('lam10', lam10)
+                            # print('lam10', lam10)
             solutions.append(
                 solve_small_pos(
                     u=u,

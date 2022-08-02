@@ -55,12 +55,12 @@ class Bridge(object):
                  stream_queue_size=1024,
                  waiting_alert_timeout=10):
         self._role = role
-        self._listen_address = "[::]:{}".format(listen_port)
+        self._listen_address = f"[::]:{listen_port}"
         self._remote_address = remote_address
         if app_id is None:
             app_id = 'test_trainer'
         self._worker_rank = worker_rank
-        self._token = "{}-{}".format(app_id, worker_rank)
+        self._token = f"{app_id}-{worker_rank}"
 
         self._condition = threading.Condition()
         self._connected = False
@@ -77,9 +77,7 @@ class Bridge(object):
         self._data_block_handler_fn = None
 
         self._waiting_alert_timeout = waiting_alert_timeout
-        if self._waiting_alert_timeout < 1:
-            self._waiting_alert_timeout = 1
-
+        self._waiting_alert_timeout = max(self._waiting_alert_timeout, 1)
         # transmit stream queue
         self._stream_queue = collections.deque()
         self._stream_queue_size = stream_queue_size
@@ -145,8 +143,8 @@ class Bridge(object):
                 return
             duration = time.time() - self._iter_started_at
             if duration >= self._supervise_iteration_timeout:
-                msg = "Suicide as iter run timeout, duration: {}, " \
-                      "maybe blocked in some point.".format(duration)
+                msg = f"Suicide as iter run timeout, duration: {duration}, maybe blocked in some point."
+
                 fl_logging.fatal(msg)
                 os._exit(138)
 
@@ -156,7 +154,7 @@ class Bridge(object):
             fl_logging.info("enable supervise iteartion timeout: %f",
                             self._supervise_iteration_timeout)
             check_handlers.append(self._check_iteration_timeout)
-        if len(check_handlers) == 0:
+        if not check_handlers:
             return
         while True:
             with self._condition:
@@ -250,7 +248,7 @@ class Bridge(object):
         with self._condition:
             if request.HasField("start"):
                 if self._peer_commit_iter_id is not None \
-                    and request.start.iter_id <= self._peer_commit_iter_id:
+                        and request.start.iter_id <= self._peer_commit_iter_id:
                     fl_logging.warning(
                         "[Bridge] received peer start iter_id: %d "
                         "which has been committed. "
@@ -280,8 +278,8 @@ class Bridge(object):
                         request.data.iter_id, self._peer_start_iter_id)
                 else:
                     iter_id = self._current_iter_id \
-                        if self._current_iter_id is not None \
-                            else self._next_iter_id
+                            if self._current_iter_id is not None \
+                                else self._next_iter_id
                     if request.data.iter_id < iter_id:
                         fl_logging.debug("[Bridge] received data iter_id: %d, "
                             "name: %s, ignored by our commit."
@@ -293,13 +291,13 @@ class Bridge(object):
                             "name: %s",
                             request.data.iter_id, request.data.name)
                         self._received_data[ \
-                            request.data.iter_id][ \
-                                request.data.name] = request.data
+                                request.data.iter_id][ \
+                                    request.data.name] = request.data
                         self._condition.notify_all()
 
             elif request.HasField("commit"):
                 if self._peer_commit_iter_id is not None \
-                    and request.commit.iter_id <= self._peer_commit_iter_id:
+                        and request.commit.iter_id <= self._peer_commit_iter_id:
                     fl_logging.warning(
                         "[Bridge] receive repeated peer commit iter_id: %d. "
                         "maybe caused by resend.(peer_commit_iter_id: %d)",
@@ -443,7 +441,7 @@ class Bridge(object):
         def func(x):
             self.send(name, x)
 
-        return tf.py_function(func=func, inp=[x], Tout=[], name='send_'+name)
+        return tf.py_function(func=func, inp=[x], Tout=[], name=f'send_{name}')
 
     def _receive(self, name):
         start_time = time.time()
@@ -456,17 +454,20 @@ class Bridge(object):
                 self._assert_iter_started()
                 if iter_id != self._current_iter_id:
                     raise RuntimeError(
-                        "[Bridge] iter change while waiting receive data, "
-                        "iter_id: {}, name: {}".format(iter_id, name))
+                        f"[Bridge] iter change while waiting receive data, iter_id: {iter_id}, name: {name}"
+                    )
+
                 if self._peer_commit_iter_id is not None \
-                    and iter_id <= self._peer_commit_iter_id:
+                        and iter_id <= self._peer_commit_iter_id:
                     raise RuntimeError(
-                        "[Bridge] peer committed without sending data "
-                        "iter_id: {}, name: {}".format(iter_id, name))
+                        f"[Bridge] peer committed without sending data iter_id: {iter_id}, name: {name}"
+                    )
+
                 if self._peer_terminated:
                     raise RuntimeError(
-                        "[Bridge] peer terminated without sending data "
-                        "iter_id: {}, name: {}".format(iter_id, name))
+                        f"[Bridge] peer terminated without sending data iter_id: {iter_id}, name: {name}"
+                    )
+
                 duration = time.time() - start_time
                 if duration >= (alert_count+1)*self._waiting_alert_timeout:
                     alert_count += 1
@@ -474,7 +475,7 @@ class Bridge(object):
                         "iter_id: %d, name: %s timeout. duration: %f sec",
                         iter_id, name, duration)
                 wait_timeout = self._waiting_alert_timeout - \
-                    (duration % self._waiting_alert_timeout)
+                        (duration % self._waiting_alert_timeout)
                 self._condition.wait(wait_timeout)
             data = self._received_data[iter_id][name]
 
@@ -498,4 +499,4 @@ class Bridge(object):
         def func():
             return tf.convert_to_tensor(self.receive(name), dtype=dtype)
 
-        return tf.py_function(func=func, inp=[], Tout=dtype, name='recv_'+name)
+        return tf.py_function(func=func, inp=[], Tout=dtype, name=f'recv_{name}')

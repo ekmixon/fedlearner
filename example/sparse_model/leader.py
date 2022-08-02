@@ -32,7 +32,7 @@ def input_fn(bridge, trainer_master=None):
         bridge, trainer_master).make_dataset()
 
     def parse_fn(example):
-        feature_map = dict()
+        feature_map = {}
         feature_map['fids'] = tf.VarLenFeature(tf.int64)
         feature_map['example_id'] = tf.FixedLenFeature([], tf.string)
         feature_map["y"] = tf.FixedLenFeature([], tf.int64)
@@ -45,9 +45,12 @@ def input_fn(bridge, trainer_master=None):
 
 
 def serving_input_receiver_fn():
-    features = {}
-    features['fids_indices'] = tf.placeholder(dtype=tf.int64, shape=[None],
-        name='fids_indices')
+    features = {
+        'fids_indices': tf.placeholder(
+            dtype=tf.int64, shape=[None], name='fids_indices'
+        )
+    }
+
     features['fids_values'] = tf.placeholder(dtype=tf.int64, shape=[None],
         name='fids_values')
     features['fids_dense_shape'] = tf.placeholder(dtype=tf.int64, shape=[None],

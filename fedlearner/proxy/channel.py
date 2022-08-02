@@ -122,13 +122,13 @@ def make_insecure_channel(address,
                           "not found in environment variable.")
             return grpc.insecure_channel(address, options, compression)
 
-        options = list(options) if options else list()
+        options = list(options) if options else []
 
         logging.debug("EGRESS_URL is [%s]", EGRESS_URL)
         if EGRESS_HOST:
             options.append(('grpc.default_authority', EGRESS_HOST))
             if EGRESS_DOMAIN:
-                address = address + '.' + EGRESS_DOMAIN
+                address = f'{address}.{EGRESS_DOMAIN}'
             header_adder = header_adder_interceptor('x-host', address)
             channel = grpc.insecure_channel(
                 EGRESS_URL, options, compression)
@@ -140,4 +140,4 @@ def make_insecure_channel(address,
     if mode == ChannelType.INTERNAL:
         return grpc.insecure_channel(address, options, compression)
 
-    raise Exception("UNKNOWN Channel by uuid %s" % address)
+    raise Exception(f"UNKNOWN Channel by uuid {address}")

@@ -92,11 +92,13 @@ class DataJoinWorker(dj_grpc.DataJoinWorkerServiceServicer):
         if response.status.code == 0:
             sync_content = request.sync_content
             filled, response.next_index, response.dumped_index = \
-                    self._transmit_follower.add_synced_item(sync_content)
+                        self._transmit_follower.add_synced_item(sync_content)
             if not filled:
                 response.status.code = -4
-                response.status.error_message = "item is not filled, expected "\
-                                                "{}".format(response.next_index)
+                response.status.error_message = (
+                    f"item is not filled, expected {response.next_index}"
+                )
+
         return response
 
     def FinishPartition(self, request, context):
@@ -163,17 +165,17 @@ class DataJoinWorker(dj_grpc.DataJoinWorkerServiceServicer):
                 )
         if remote_rank_id != self._rank_id:
             return common_pb.Status(
-                    code=-2,
-                    error_message="rank_id mismatch. {}(caller) != {}(srv)"\
-                                  .format(remote_rank_id, self._rank_id)
-                )
+                code=-2,
+                error_message=f"rank_id mismatch. {remote_rank_id}(caller) != {self._rank_id}(srv)",
+            )
+
         partition_num = self._data_source.data_source_meta.partition_num
         if partition_id < 0 or partition_id > partition_num:
             return common_pb.Status(
-                    code=-3,
-                    error_message="partition-{} is out of range[0, {})"\
-                            .format(partition_id, partition_num)
-                )
+                code=-3,
+                error_message=f"partition-{partition_id} is out of range[0, {partition_num})",
+            )
+
         return common_pb.Status(code=0)
 
     def _is_partition_finished(self, partition_id):

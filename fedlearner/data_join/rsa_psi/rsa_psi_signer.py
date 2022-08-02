@@ -54,7 +54,7 @@ class RsaPsiSigner(object):
         self._process_pool_executor = None
         if offload_processor_number > 0:
             self._process_pool_executor = \
-                    futures.ProcessPoolExecutor(offload_processor_number)
+                        futures.ProcessPoolExecutor(offload_processor_number)
         self._slow_sign_threshold = slow_sign_threshold
         self._total_sign_duration = .0
         self._sign_batch_num = 0
@@ -68,7 +68,7 @@ class RsaPsiSigner(object):
         start_tm = time.time()
         response = None
         if self._process_pool_executor is not None:
-            rids = [rid for rid in request.ids] # pylint: disable=unnecessary-comprehension
+            rids = list(request.ids)
             sign_future = self._process_pool_executor.submit(
                     RsaPsiSigner._psi_sign_impl, rids, d, n
                 )
@@ -103,14 +103,14 @@ class RsaPsiSigner(object):
             logging_record = self._sign_batch_num % 32 == 0
         if logging_record:
             avg_duration = self._total_sign_duration \
-                    / self._sign_batch_num
+                        / self._sign_batch_num
             slow_avg_duration = 0.0
             if self._slow_sign_batch_num > 0:
                 slow_avg_duration = self._total_slow_sign_duration \
-                        / self._slow_sign_batch_num
+                            / self._slow_sign_batch_num
             logging.warning("%d/%d batch[%d, %d) sign cost more than %d "\
-                            "second, avg duration: %f for each batch, avg "\
-                            "duration: %f for slow batch",
+                                "second, avg duration: %f for each batch, avg "\
+                                "duration: %f for slow batch",
                             self._slow_sign_batch_num, self._sign_batch_num,
                             begin_index, begin_index+batch_len,
                             self._slow_sign_threshold,

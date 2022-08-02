@@ -53,7 +53,7 @@ class ClientInterceptor(grpc.UnaryUnaryClientInterceptor,
         self._wait_fn = wait_fn
         self._check_fn = check_fn
 
-        self._method_details = dict()
+        self._method_details = {}
 
         self._fl_metadata = ("fl-channel-id", self._identifer)
         self._stats_client = stats_client or stats.NoneClient()
@@ -243,8 +243,7 @@ class _SingleConsumerSendRequestQueue():
 
     def _reset(self):
         if self._offset > 0:
-            self._stats_client.incr(
-                "%s_resend"%self._stats_prefix, self._offset)
+            self._stats_client.incr(f"{self._stats_prefix}_resend", self._offset)
         self._offset = 0
 
     def _empty(self):
@@ -288,8 +287,7 @@ class _SingleConsumerSendRequestQueue():
                 while len(self._deque) >= n:
                     req = self._deque.popleft()
                     self._offset -= 1
-                    pipe.timing("%s_timing"%self._stats_prefix,
-                        (now-req.ts)*1000)
+                    pipe.timing(f"{self._stats_prefix}_timing", (now-req.ts)*1000)
             return True
 
     def next(self, consumer):
@@ -348,9 +346,7 @@ def _grpc_error_need_recover(e):
                     grpc.StatusCode.UNIMPLEMENTED):
         return True
     if e.code() == grpc.StatusCode.UNKNOWN:
-        httpstatus = _grpc_error_get_http_status(e.details())
-        # catch all header with non-200 OK
-        if httpstatus:
+        if httpstatus := _grpc_error_get_http_status(e.details()):
             #if 400 <= httpstatus < 500:
             #    return True
             return True

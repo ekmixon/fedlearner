@@ -51,16 +51,18 @@ class MergedSortRunMeta(object):
     @classmethod
     def decode_sort_run_meta_from_fname(cls, fname):
         if not fname.endswith(common.RawDataFileSuffix):
-            raise RuntimeError("fname of MergedSortRun should endswith "\
-                               "{}".format(common.RawDataFileSuffix))
+            raise RuntimeError(
+                f"fname of MergedSortRun should endswith {common.RawDataFileSuffix}"
+            )
+
         if not fname.startswith('part-'):
-            raise RuntimeError("fname of MergedSortRun should startswith "\
-                               "{}".format('part-'))
+            raise RuntimeError('fname of MergedSortRun should startswith part-')
         segs = fname[len('part-'):-len(common.RawDataFileSuffix)].split('.')
         if len(segs) != 2:
-            raise RuntimeError("fname: {} should format as "\
-                               "part-partition_id-process_index{}"\
-                               .format(fname, common.RawDataFileSuffix))
+            raise RuntimeError(
+                f"fname: {fname} should format as part-partition_id-process_index{common.RawDataFileSuffix}"
+            )
+
         return MergedSortRunMeta(int(segs[0]), int(segs[1]))
 
 class SortRunReader(object):
@@ -92,10 +94,7 @@ class SortRunReader(object):
         self._reader_options = reader_options
         self._comparator = comparator
         self._fiter = None
-        if gfile.Exists(fpath):
-            self._finished = False
-        else:
-            self._finished = True
+        self._finished = not gfile.Exists(fpath)
 
     def finished(self):
         return self._finished
@@ -125,7 +124,7 @@ class SortRunReader(object):
                                                self._comparator)
             except StopIteration:
                 self._finished = True
-        raise StopIteration("%s has been iter finished" % self._fpath)
+        raise StopIteration(f"{self._fpath} has been iter finished")
 
 class SortRunMergerWriter(object):
     def __init__(self, base_dir, process_index, partition_id, writer_options):
@@ -197,11 +196,11 @@ class SortRunMerger(object):
         dumped_item, next_process_index = self._sync_merged_state()
         readers = self._create_sort_run_readers(input_fpaths)
         pque = queue.PriorityQueue(len(input_fpaths) + 1)
-        for idx, reader in enumerate(readers):
+        for reader in readers:
             if not reader.finished():
                 for item in reader:
                     if dumped_item is None or \
-                            not self._comparator(item, dumped_item):
+                                not self._comparator(item, dumped_item):
                         pque.put(item)
                         break
         writer = self._create_sort_run_merger_writer(next_process_index)
@@ -272,7 +271,7 @@ class SortRunMerger(object):
                 meta = MergedSortRunMeta.decode_sort_run_meta_from_fname(fname)
                 metas.append(meta)
         metas.sort()
-        if len(metas) == 0:
+        if not metas:
             return None, 0
         last_meta = metas[-1]
         fpath = os.path.join(self._merged_dir,

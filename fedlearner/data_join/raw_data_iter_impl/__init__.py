@@ -27,8 +27,7 @@ from fedlearner.data_join.raw_data_iter_impl.tf_record_iter import TfRecordIter
 iter_impl_map = {}
 
 __path__ = pkgutil.extend_path(__path__, __name__)
-for _, module, ispackage in pkgutil.walk_packages(
-        path=__path__, prefix=__name__+'.'):
+for _, module, ispackage in pkgutil.walk_packages(path=__path__, prefix=f'{__name__}.'):
     if ispackage:
         continue
     __import__(module)

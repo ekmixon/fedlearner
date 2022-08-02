@@ -28,21 +28,20 @@ class RoutineWorker(object):
         self._condition = threading.Condition(self._lock)
         self._exec_interval = exec_interval
         if self._exec_interval is not None and self._exec_interval <= 0:
-            raise ValueError('exec interval: {} is illegal'.format(
-                              exec_interval))
+            raise ValueError(f'exec interval: {exec_interval} is illegal')
         self._cond_fn = cond_fn
         self._routine_fn = routine_fn
         self._skip_round = False
         self._thread = None
         self._args = tuple()
-        self._kwargs = dict()
+        self._kwargs = {}
 
     def start_routine(self):
         with self._lock:
             if self._thread is not None:
-                raise Exception('worker {} has started'.format(self._name))
+                raise Exception(f'worker {self._name} has started')
             if self._stop:
-                raise Exception('worker {} has stopped'.format(self._name))
+                raise Exception(f'worker {self._name} has stopped')
             self._thread = threading.Thread(target=self._routine,
                                             name=self._name)
             self._thread.start()
@@ -77,11 +76,11 @@ class RoutineWorker(object):
             args = self._args
             kwargs = self._kwargs
             self._args = tuple()
-            self._kwargs = dict()
+            self._kwargs = {}
             return args, kwargs
 
     def _parse_http_code(self, e):
-        new_err_msg = "%s" % e
+        new_err_msg = f"{e}"
         new_err_code = re.findall(r'Received http2 header with status: (\d+)',
                                   new_err_msg)
         if len(new_err_code) == 0:

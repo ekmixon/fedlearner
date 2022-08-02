@@ -30,14 +30,12 @@ class TfExampleItem(RawDataIter.Item):
         self._index = index
         if self._cache_type:
             assert self._index is not None,\
-                    "store space is disk, index cann't be None"
+                        "store space is disk, index cann't be None"
         self._parse_example_error = False
         example = self._parse_example(record_str)
         dic = common.convert_tf_example_to_dict(example)
         # should not be list for data block
-        new_dict = {}
-        for key, val in dic.items():
-            new_dict[key] = val[0] if len(val) == 1 else val
+        new_dict = {key: val[0] if len(val) == 1 else val for key, val in dic.items()}
         self._features.update({key: new_dict[key] for key in new_dict
                                if key in common.ALLOWED_FIELDS.keys()})
         self._set_tf_record(record_str)
@@ -159,10 +157,10 @@ class TfRecordIter(RawDataIter):
                     compression_type=self._options.compressed_type,
                     num_parallel_reads=1,
                     buffer_size=None if self._options.read_ahead_size <= 0 \
-                            else self._options.read_ahead_size
+                                else self._options.read_ahead_size
                 )
             batch_size = self._options.read_batch_size if \
-                    self._options.read_batch_size > 0 else 1
+                        self._options.read_batch_size > 0 else 1
             data_set = data_set.batch(batch_size)
             yield data_set
         except Exception as e: # pylint: disable=broad-except

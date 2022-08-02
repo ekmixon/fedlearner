@@ -48,7 +48,7 @@ class MySQLClient(object):
             self._password = ''
         self._base_dir = base_dir
         if self._base_dir[0] != '/':
-            self._base_dir = '/' + self._base_dir
+            self._base_dir = f'/{self._base_dir}'
         self._create_engine_inner()
 
     def get_data(self, key):
@@ -57,9 +57,7 @@ class MySQLClient(object):
                 value = sess.query(DatasourceMeta).filter(
                     DatasourceMeta.kv_key == self._generate_key(key)
                 ).one().kv_value
-                if isinstance(value, str):
-                    return value.encode()
-                return value
+                return value.encode() if isinstance(value, str) else value
             except NoResultFound:
                 return None
             except Exception as e: # pylint: disable=broad-except
@@ -70,17 +68,18 @@ class MySQLClient(object):
     def set_data(self, key, data):
         with self.closing(self._engine) as sess:
             try:
-                context = sess.query(DatasourceMeta).filter(
-                    DatasourceMeta.kv_key == self._generate_key(key)).first()
-                if context:
+                if (
+                    context := sess.query(DatasourceMeta)
+                    .filter(DatasourceMeta.kv_key == self._generate_key(key))
+                    .first()
+                ):
                     context.kv_value = data
-                    sess.commit()
                 else:
                     context = DatasourceMeta(
                         kv_key=self._generate_key(key),
                         kv_value=data)
                     sess.add(context)
-                    sess.commit()
+                sess.commit()
                 return True
             except Exception as e: # pylint: disable=broad-except
                 fl_logging.error('failed to set data. msg[%s]', e)
@@ -104,8 +103,7 @@ class MySQLClient(object):
     def delete_prefix(self, key):
         with self.closing(self._engine) as sess:
             try:
-                for context in sess.query(DatasourceMeta).filter(
-                    DatasourceMeta.kv_key.like(self._generate_key(key) + '%')):
+                for context in sess.query(DatasourceMeta).filter(DatasourceMeta.kv_key.like(f'{self._generate_key(key)}%')):
                     sess.delete(context)
                 sess.commit()
                 return True
@@ -123,16 +121,15 @@ class MySQLClient(object):
                         kv_key=self._generate_key(key),
                         kv_value=new_data)
                     sess.add(context)
-                    sess.commit()
                 else:
                     context = sess.query(DatasourceMeta).filter(
                         DatasourceMeta.kv_key ==\
-                        self._generate_key(key)).one()
+                            self._generate_key(key)).one()
                     if context.kv_value != old_data:
                         flag = False
                         return flag
                     context.kv_value = new_data
-                    sess.commit()
+                sess.commit()
                 return flag
             except Exception as e: # pylint: disable=broad-except
                 fl_logging.error('failed to cas. msg[%s]', e)
@@ -144,9 +141,7 @@ class MySQLClient(object):
         path = self._generate_key(prefix)
         with self.closing(self._engine) as sess:
             try:
-                for context in sess.query(DatasourceMeta).filter(
-                    DatasourceMeta.kv_key.like(path + '%')).order_by(
-                    DatasourceMeta.kv_key):
+                for context in sess.query(DatasourceMeta).filter(DatasourceMeta.kv_key.like(f'{path}%')).order_by(DatasourceMeta.kv_key):
                     if ignor_prefix and context.kv_key == path:
                         continue
                     nkey = self._normalize_output_key(context.kv_key,
@@ -164,17 +159,14 @@ class MySQLClient(object):
                 return None
 
     def _generate_key(self, key):
-        nkey = '/'.join([self._base_dir, self._normalize_input_key(key)])
-        return nkey
+        return '/'.join([self._base_dir, self._normalize_input_key(key)])
 
     @staticmethod
     def _normalize_input_key(key):
         skip_cnt = 0
-        while key[skip_cnt] == '.' or key[skip_cnt] == '/':
+        while key[skip_cnt] in ['.', '/']:
             skip_cnt += 1
-        if skip_cnt > 0:
-            return key[skip_cnt:]
-        return key
+        return key[skip_cnt:] if skip_cnt > 0 else key
 
     @staticmethod
     def _normalize_output_key(key, base_dir):
@@ -187,21 +179,20 @@ class MySQLClient(object):
     def _create_engine_inner(self):
         try:
             conn_string_pattern = 'mysql+mysqldb://{user}:{passwd}@{addr}'\
-                    '/{db_name}'
+                        '/{db_name}'
             conn_string = conn_string_pattern.format(
                 user=self._user, passwd=self._password,
                 addr=self._addr, db_name=self._database)
             if self._unix_socket:
-                sub = '?unix_socket={}'.format(self._unix_socket)
-                conn_string = conn_string + sub
+                sub = f'?unix_socket={self._unix_socket}'
+                conn_string += sub
             self._engine = create_engine(conn_string, echo=False,
                                         pool_recycle=180)
             # Creates table if not exists
             Base.metadata.create_all(bind=self._engine,
                                      checkfirst=True)
         except Exception as e:
-            raise ValueError('create mysql engine failed; [{}]'.\
-                format(e))
+            raise ValueError(f'create mysql engine failed; [{e}]')
 
     @staticmethod
     @contextmanager

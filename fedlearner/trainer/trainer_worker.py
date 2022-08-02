@@ -305,12 +305,15 @@ def _get_checkpoint_filename_with_path(args):
         checkpoint_filename_with_path = args.load_checkpoint_filename_with_path
 
     elif args.load_checkpoint_filename:
-        load_checkpoint_path = args.load_checkpoint_path or args.checkpoint_path
-        if not load_checkpoint_path:
+        if (
+            load_checkpoint_path := args.load_checkpoint_path
+            or args.checkpoint_path
+        ):
+            checkpoint_filename_with_path = \
+                os.path.join(load_checkpoint_path, args.checkpoint_filename)
+        else:
             raise ValueError("load_checkpoint_path or checkpoint_path is "
                              "required when provide load_checkpoint_filename")
-        checkpoint_filename_with_path = \
-            os.path.join(load_checkpoint_path, args.checkpoint_filename)
     elif args.load_checkpoint_path or args.checkpoint_path:
         load_checkpoint_path = args.load_checkpoint_path or args.checkpoint_path
         checkpoint_filename_with_path = \
@@ -320,13 +323,15 @@ def _get_checkpoint_filename_with_path(args):
         return None
 
     if not tf.train.checkpoint_exists(checkpoint_filename_with_path):
-        raise RuntimeError("not a valid checkpoint file: %s" \
-                           %checkpoint_filename_with_path)
+        raise RuntimeError(
+            f"not a valid checkpoint file: {checkpoint_filename_with_path}"
+        )
+
 
     return checkpoint_filename_with_path
 
 def _create_cluster_spec(args, require_ps=False):
-    cluster_spec_dict = dict()
+    cluster_spec_dict = {}
     if args.cluster_spec:
         cluster_spec = json.loads(args.cluster_spec)["clusterSpec"]
         if "Master" in cluster_spec \
@@ -341,9 +346,10 @@ def _create_cluster_spec(args, require_ps=False):
     elif args.ps_addrs:
         cluster_spec_dict["ps"] = \
             [addr.strip() for addr in args.ps_addrs.split(",")]
-    if require_ps:
-        if "ps" not in cluster_spec_dict or len(cluster_spec_dict["ps"]) == 0:
-            raise ValueError("ps is required")
+    if require_ps and (
+        "ps" not in cluster_spec_dict or len(cluster_spec_dict["ps"]) == 0
+    ):
+        raise ValueError("ps is required")
 
     return tf.train.ClusterSpec(cluster_spec_dict)
 
@@ -376,15 +382,16 @@ def train(role,
         _gctx.job = args.application_id
 
     if not isinstance(role, str) or role.lower() not in (LEADER, FOLLOER):
-        raise ValueError("--role must set one of %s or %s"%(LEADER, FOLLOER))
+        raise ValueError(f"--role must set one of {LEADER} or {FOLLOER}")
 
     if args.loglevel:
         fl_logging.set_level(args.loglevel)
 
-    if export_model_hook is not None:
-        if not isinstance(export_model_hook, ExportModelHook):
-            raise ValueError("model_export_hook must be a "
-                             "ExportModelHook, but get %r"%export_model_hook)
+    if export_model_hook is not None and not isinstance(
+        export_model_hook, ExportModelHook
+    ):
+        raise ValueError("model_export_hook must be a "
+                         "ExportModelHook, but get %r"%export_model_hook)
 
     mode = args.mode.lower()
     if mode not in ('train', 'eval'):
@@ -396,12 +403,9 @@ def train(role,
     elif args.master:
         _gctx.task = "master"
         _gctx.task_index = 0
-    elif args.worker:
+    else:
         _gctx.task = "worker"
         _gctx.task_index = args.worker_rank
-    else:
-        raise ValueError("duplication specify --master and --worker")
-
     stats.enable_cpu_stats(_gctx.stats_client)
     stats.enable_mem_stats(_gctx.stats_client)
 
@@ -416,4 +420,4 @@ def train(role,
     elif _gctx.task == "worker":
         _run_worker(role, args, input_fn, model_fn)
     else:
-        raise ValueError("unknow task mode: %s"%_gctx.task)
+        raise ValueError(f"unknow task mode: {_gctx.task}")

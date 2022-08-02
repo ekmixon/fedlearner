@@ -66,11 +66,10 @@ class GradHessPacker:
             FixedPointNumber.encode(h, self._n, self.max_int, self.precision)
             for h in hess
         ]
-        grad_hess_encoding = [
+        return [
             (g_text.encoding << self.offset) + h_text.encoding
             for g_text, h_text in zip(grad_plaintext, hess_plaintext)
         ]
-        return grad_hess_encoding
 
     def pack_and_encrypt_grad_hess(self, grad, hess):
         """Pack and Encrypt Grad and Hess
@@ -85,11 +84,10 @@ class GradHessPacker:
             self.public_key.raw_encrypt(encoding, random_value=None)
             for encoding in grad_hess_encoding
         ]
-        enc_numbers = [
+        return [
             PaillierEncryptedNumber(self.public_key, i, self.exponent)
             for i in grad_hess_ciphertext
         ]
-        return enc_numbers
 
     def decrypt_and_unpack_grad_hess(self, grad_hess_ciphertext, private_key):
         """Decrypt and Unpack Ciphertext into grad and hess

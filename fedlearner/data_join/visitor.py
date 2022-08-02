@@ -30,11 +30,13 @@ class IndexMeta(object):
         return self.start_index < other.start_index
 
     def __eq__(self, other):
-        if not isinstance(other, IndexMeta):
-            return False
-        return self.process_index == other.process_index and \
-                self.start_index == other.start_index and \
-                self.fpath == other.fpath
+        return (
+            self.process_index == other.process_index
+            and self.start_index == other.start_index
+            and self.fpath == other.fpath
+            if isinstance(other, IndexMeta)
+            else False
+        )
 
 class IndexMetaManager(object):
     def __init__(self, preload_metas):
@@ -60,15 +62,15 @@ class IndexMetaManager(object):
     def get_index_meta_by_index(self, process_index, start_index):
         with self._lock:
             if process_index < 0 or process_index > len(self._index_metas):
-                raise IndexError("{} is out if range".format(process_index))
+                raise IndexError(f"{process_index} is out if range")
             if process_index == 0:
                 if start_index != 0:
                     raise IndexError("index should be 0 for index meta "\
-                                     "of process index 0")
+                                         "of process index 0")
             else:
                 prev_meta = self._index_metas[process_index-1]
                 assert prev_meta.start_index <= start_index, \
-                        "start_index should be incremental"
+                            "start_index should be incremental"
             if process_index == len(self._index_metas):
                 index_meta = self._new_index_meta(process_index, start_index)
                 if index_meta is None:
@@ -136,9 +138,7 @@ class Visitor(object):
             )
 
     def get_index(self):
-        if self._iter is None:
-            return 0
-        return self._iter.get_index()
+        return 0 if self._iter is None else self._iter.get_index()
 
     def get_item(self):
         if self._iter is None:
@@ -152,14 +152,12 @@ class Visitor(object):
         tmp_index_meta = IndexMeta(0, target_index, '')
         process_index = bisect.bisect_left(self._index_metas, tmp_index_meta)
         if len(self._index_metas) > 0 and \
-                (len(self._index_metas) == process_index or
+                    (len(self._index_metas) == process_index or
                     self._index_metas[process_index].start_index >
                         target_index):
             process_index -= 1
             if process_index < 0:
-                raise IndexError(
-                        "target_index {} is too samll".format(target_index)
-                    )
+                raise IndexError(f"target_index {target_index} is too samll")
         start_index = 0
         if process_index < len(self._index_metas):
             start_index = self._index_metas[process_index].start_index
@@ -203,11 +201,10 @@ class Visitor(object):
         if process_index < len(self._index_metas):
             index_meta = self._index_metas[process_index]
         else:
-            assert process_index == len(self._index_metas), \
-                "the next required process index should consecutive, "\
-                "{}(process_index) == {}(len(self._index_metas))".format(
-                        process_index, len(self._index_metas)
-                    )
+            assert process_index == len(
+                self._index_metas
+            ), f"the next required process index should consecutive, {process_index}(process_index) == {len(self._index_metas)}(len(self._index_metas))"
+
             index_meta = self._index_mata_manager.get_index_meta_by_index(
                     process_index, start_index
                 )
@@ -215,19 +212,19 @@ class Visitor(object):
                 self._finished = True
                 raise StopIteration('need more index meta')
             self._append_index_meta(index_meta)
-        assert index_meta.process_index == process_index, \
-            "{}(index meta process index) != {}(process index)".format(
-                    index_meta.process_index, process_index
-                )
-        assert index_meta.start_index == start_index, \
-            "{}(index meta start index) != {}(start index)".format(
-                    index_meta.start_index, start_index
-                )
+        assert (
+            index_meta.process_index == process_index
+        ), f"{index_meta.process_index}(index meta process index) != {process_index}(process index)"
+
+        assert (
+            index_meta.start_index == start_index
+        ), f"{index_meta.start_index}(index meta start index) != {start_index}(start index)"
+
         try:
             self._reset_iter_by_index_meta(index_meta)
         except StopIteration as se:
             logging.warning("meet StopIteration %s when open file %s. "\
-                            "No data in it", se, index_meta.fpath)
+                                "No data in it", se, index_meta.fpath)
             return self._forward_to_target(
                     process_index+1, start_index, target_index
                 )
@@ -239,10 +236,10 @@ class Visitor(object):
             return self._forward_to_target(process_index + 1,
                                            current_index + 1,
                                            target_index)
-        assert current_index == target_index, \
-            "the seeked index should equel to target index. "\
-            "{}(seek index) != {}(target index)".format(current_index,
-                                                        target_index)
+        assert (
+            current_index == target_index
+        ), f"the seeked index should equel to target index. {current_index}(seek index) != {target_index}(target index)"
+
         return current_index, self._iter.get_item()
 
     def _append_index_meta(self, index_meta):

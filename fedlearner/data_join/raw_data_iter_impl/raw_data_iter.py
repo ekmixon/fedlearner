@@ -108,16 +108,16 @@ class RawDataIter(object):
             self._fiter, self._item = self._reset_iter(index_meta)
             self._index_meta = index_meta
             self._index = None if index_meta is None \
-                    else index_meta.start_index
+                        else index_meta.start_index
         self._iter_failed = False
 
     def seek_to_target(self, target_index):
         self._check_valid()
         if self._index_meta.start_index > target_index:
             raise IndexError(
-                    "target index {} < start index {}".format(
-                    target_index, self._index_meta.start_index)
-                )
+                f"target index {target_index} < start index {self._index_meta.start_index}"
+            )
+
         try:
             if self._index == target_index:
                 return
@@ -176,9 +176,8 @@ class RawDataIter(object):
 
     def _reset_iter(self, index_meta):
         raise NotImplementedError(
-                "_reset_iter not implement for class %s" %
-                RawDataIter.name()
-            )
+            f"_reset_iter not implement for class {RawDataIter.name()}"
+        )
 
     def _next(self):
         assert self._fiter is not None, "_fiter must be not None in _next"

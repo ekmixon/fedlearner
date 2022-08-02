@@ -41,15 +41,15 @@ class _TrainerMasterClient(object):
                           response.block_id, response.data_path)
             return response
         if response.status.code == \
-            common_pb.StatusCode.STATUS_INVALID_DATA_BLOCK:
+                common_pb.StatusCode.STATUS_INVALID_DATA_BLOCK:
             fl_logging.error("invalid data block id: %s", request.block_id)
             return None
         if response.status.code == common_pb.StatusCode.STATUS_DATA_FINISHED:
             fl_logging.info("data block finished")
             return None
-        raise RuntimeError("RequestDataBlock error, code: %s, msg: %s"% \
-            (common_pb.StatusCode.Name(response.status.code),
-             response.status.error_message))
+        raise RuntimeError(
+            f"RequestDataBlock error, code: {common_pb.StatusCode.Name(response.status.code)}, msg: {response.status.error_message}"
+        )
 
     def worker_register(self, cluster_def=None):
         request = tm_pb.WorkerRegisterRequest(
@@ -62,17 +62,17 @@ class _TrainerMasterClient(object):
             if response.status.code == common_pb.StatusCode.STATUS_SUCCESS:
                 return True
             if response.status.code == \
-                common_pb.StatusCode.STATUS_WAIT_FOR_SYNCING_CHECKPOINT:
+                    common_pb.StatusCode.STATUS_WAIT_FOR_SYNCING_CHECKPOINT:
                 fl_logging.info("waiting master ready...")
                 time.sleep(1)
                 continue
             if response.status.code == \
-                common_pb.StatusCode.STATUS_DATA_FINISHED:
+                    common_pb.StatusCode.STATUS_DATA_FINISHED:
                 fl_logging.info("master completed, ignore worker register")
                 return False
-            raise RuntimeError("WorkerRegister error, code: %s, msg: %s"% \
-                (common_pb.StatusCode.Name(response.status.code),
-                response.status.error_message))
+            raise RuntimeError(
+                f"WorkerRegister error, code: {common_pb.StatusCode.Name(response.status.code)}, msg: {response.status.error_message}"
+            )
 
     def worker_complete(self, timestamp):
         request = tm_pb.WorkerCompleteRequest(
@@ -81,9 +81,9 @@ class _TrainerMasterClient(object):
         response = _grpc_with_retry(
             lambda: self._client.WorkerComplete(request))
         if response.status.code != common_pb.STATUS_SUCCESS:
-            raise RuntimeError("WorkerComplete error, code: %s, msg: %s"% \
-                (common_pb.StatusCode.Name(response.status.code),
-                 response.status.error_message))
+            raise RuntimeError(
+                f"WorkerComplete error, code: {common_pb.StatusCode.Name(response.status.code)}, msg: {response.status.error_message}"
+            )
 
     def wait_master_complete(self):
         request = tm_pb.IsCompletedRequest()
@@ -153,7 +153,7 @@ class _LocalServicerContext(grpc.ServicerContext):
         return None
 
     def auth_context(self):
-        return dict()
+        return {}
 
     def set_compression(self, compression):
         return grpc.Compression.NoCompression

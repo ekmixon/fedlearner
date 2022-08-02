@@ -67,16 +67,15 @@ class TransmitFollower(object):
     def start_sync_partition(self, partition_id):
         with self._lock:
             if self._impl_ctx is not None and \
-                    self._impl_ctx.partition_id != partition_id:
+                        self._impl_ctx.partition_id != partition_id:
                 raise RuntimeError(
-                        "{} is processing partition {}".format(
-                            self._repr_str, self._impl_ctx.partition_id
-                        )
-                    )
+                    f"{self._repr_str} is processing partition {self._impl_ctx.partition_id}"
+                )
+
             if self._impl_ctx is None:
                 self._impl_ctx = self._make_new_impl_ctx(partition_id)
             return self._impl_ctx.get_next_index(), \
-                    self._impl_ctx.get_dumped_index()
+                        self._impl_ctx.get_dumped_index()
 
     @metrics.timer(func_name='add_synced_item',
                    tags={'role': 'transmit_follower'})
@@ -106,27 +105,31 @@ class TransmitFollower(object):
             if not self._check_status(partition_id, False):
                 return
             if not self._impl_ctx.is_sync_content_finished() or \
-                    self._impl_ctx.need_dump():
-                raise RuntimeError("{} is still dumping for partition {}"\
-                                   .format(self._repr_str, partition_id))
+                        self._impl_ctx.need_dump():
+                raise RuntimeError(
+                    f"{self._repr_str} is still dumping for partition {partition_id}"
+                )
+
             self._impl_ctx = None
 
     def get_processing_partition_id(self):
         with self._lock:
-            if self._impl_ctx is None:
-                return None
-            return self._impl_ctx.partition_id
+            return None if self._impl_ctx is None else self._impl_ctx.partition_id
 
     def start_dump_worker(self):
         with self._lock:
             if not self._started:
-                assert self._dump_worker is None, \
-                    "dumper woker for {} should be None if "\
-                    "not started".format(self._repr_str)
+                assert (
+                    self._dump_worker is None
+                ), f"dumper woker for {self._repr_str} should be None if not started"
+
                 self._dump_worker = RoutineWorker(
-                        self._repr_str+'-dump_worker',
-                        self._dump_fn, self._dump_cond, 1
-                    )
+                    f'{self._repr_str}-dump_worker',
+                    self._dump_fn,
+                    self._dump_cond,
+                    1,
+                )
+
                 self._dump_worker.start_routine()
                 self._started = True
 
@@ -147,11 +150,9 @@ class TransmitFollower(object):
             if not raise_exception:
                 return False
             raise RuntimeError(
-                    "partition id mismatch {} != {} for {}".format(
-                        self._impl_ctx.partition_id,
-                        partition_id, self._repr_str
-                    )
-                )
+                f"partition id mismatch {self._impl_ctx.partition_id} != {partition_id} for {self._repr_str}"
+            )
+
         return True
 
     def _dump_fn(self, impl_ctx):

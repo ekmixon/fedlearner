@@ -82,7 +82,7 @@ class _DataVisitor(object):
                 "checkpoints": {}
             }
             for epoch in self._allocated:
-                key = "epoch-" + str(epoch)
+                key = f"epoch-{str(epoch)}"
                 data["checkpoints"][key] = sorted(self._allocated[epoch])
         return zlib.compress(json.dumps(data).encode())
 
@@ -181,10 +181,12 @@ class DataSourceVisitor(_DataVisitor):
         fl_logging.info("create DataVisitor by data_source: %s", data_source)
         self._data_block_visitor = DataBlockVisitor(
             data_source, kvstore_type, kvstore_use_mock)
-        datablocks = []
-        for datablock in self._data_block_visitor.LoadDataBlockRepByTimeFrame(
-            start_date, end_date).values():
-            datablocks.append(datablock)
+        datablocks = list(
+            self._data_block_visitor.LoadDataBlockRepByTimeFrame(
+                start_date, end_date
+            ).values()
+        )
+
         datablocks.sort(key=lambda x: x.start_time)
 
         super(DataSourceVisitor, self).__init__(
@@ -201,7 +203,7 @@ class DataPathVisitor(_DataVisitor):
                  shuffle=False):
         fl_logging.info("create DataVisitor by data_path: %s", data_path)
         if not tf.io.gfile.exists(data_path):
-            raise ValueError("data_path not found: %s"%data_path)
+            raise ValueError(f"data_path not found: {data_path}")
 
         datablocks = []
         for dirname, _, filenames in tf.io.gfile.walk(data_path):

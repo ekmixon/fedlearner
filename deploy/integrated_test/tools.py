@@ -4,9 +4,11 @@ import datetime
 
 
 def login(args):
-    login_res = requests.post(url=args.url + '/login',
-                              data={'username': args.username,
-                                    'password': args.password})
+    login_res = requests.post(
+        url=f'{args.url}/login',
+        data={'username': args.username, 'password': args.password},
+    )
+
     try:
         res_json = json.loads(login_res.content)
     except json.decoder.JSONDecodeError:
@@ -14,7 +16,7 @@ def login(args):
     if 'error' not in res_json.keys():
         return login_res.cookies
     else:
-        raise Exception("Login error: {}".format(res_json["error"]))
+        raise Exception(f'Login error: {res_json["error"]}')
 
 
 def request_and_response(args, url, json_data, cookies, name_suffix=''):
@@ -37,7 +39,13 @@ def request_and_response(args, url, json_data, cookies, name_suffix=''):
     if post:
         response = requests.post(url=url, data=json_data, cookies=cookies, headers=headers)
     elif 'raw-data' not in name_suffix:
-        response = requests.put(url=url + '/' + str(_id), data=json_data, cookies=cookies, headers=headers)
+        response = requests.put(
+            url=f'{url}/{str(_id)}',
+            data=json_data,
+            cookies=cookies,
+            headers=headers,
+        )
+
     else:
         print("Currently modifying existing raw data is not supported.")
         return _id, args.name + name_suffix
@@ -47,13 +55,17 @@ def request_and_response(args, url, json_data, cookies, name_suffix=''):
     except json.decoder.JSONDecodeError:
         print('Json data to be sent:')
         print(json_data)
-        raise Exception('404 error encountered when building/modifying {}. '
-                        'Please check whether webconsole api changed.'.format(url.split('/')[-1]))
-    if 'error' not in response.keys():
-        _id = response['data']['id']
-        name = response['data']['name']
-    else:
-        raise Exception('Build/Modify {} error: {}'.format(url.split('/')[-1], response['error']))
+        raise Exception(
+            f"404 error encountered when building/modifying {url.split('/')[-1]}. Please check whether webconsole api changed."
+        )
+
+    if 'error' in response.keys():
+        raise Exception(
+            f"Build/Modify {url.split('/')[-1]} error: {response['error']}"
+        )
+
+    _id = response['data']['id']
+    name = response['data']['name']
     return _id, name
 
 
@@ -80,16 +92,15 @@ def build_data_join_ticket(args, fed_id, raw_name, filepath, role):
         ticket_json['federation_id'] = fed_id
         ticket_json['role'] = role
         ticket_json['sdk_version'] = args.image.split(':')[-1]
-        ticket_json['expire_time'] = str(datetime.datetime.now().year + 1) + '-12-31'
+        ticket_json['expire_time'] = f'{str(datetime.datetime.now().year + 1)}-12-31'
         for param in ['public_params', 'private_params']:
             for pod_name, pod in ticket_json[param]['spec']['flReplicaSpecs'].items():
                 container = pod['template']['spec']['containers'][0]
                 container['image'] = args.image
-                if not args.streaming:
-                    if param == 'public_params':
-                        container['args'] = args.cmd_args[pod_name]
-                        if pod_name == 'Worker':
-                            container['env'].extend(args.psi_extras)
+                if not args.streaming and param == 'public_params':
+                    container['args'] = args.cmd_args[pod_name]
+                    if pod_name == 'Worker':
+                        container['env'].extend(args.psi_extras)
                 for d in container['env']:
                     if d['name'] == 'RAW_DATA_SUB_DIR':
                         d['value'] += raw_name
@@ -105,7 +116,7 @@ def build_train_ticket(args, fed_id, filepath, role, client=True):
         ticket_json['name'] = args.name + name_suffix
         ticket_json['federation_id'] = fed_id
         ticket_json['role'] = role
-        ticket_json['expire_time'] = str(datetime.datetime.now().year + 1) + '-12-31'
+        ticket_json['expire_time'] = f'{str(datetime.datetime.now().year + 1)}-12-31'
         for param in ['public_params', 'private_params']:
             for pod in ticket_json[param]['spec']['flReplicaSpecs'].values():
                 container = pod['template']['spec']['containers'][0]

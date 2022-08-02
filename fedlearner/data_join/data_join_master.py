@@ -113,13 +113,15 @@ class MasterFSM(object):
         with self._lock:
             if not self._started:
                 assert self._fsm_worker is None, \
-                    "fsm_woker must be None if FSM is not started"
+                        "fsm_woker must be None if FSM is not started"
                 self._started = True
                 self._fsm_worker = RoutineWorker(
-                        '{}_fsm_worker'.format(self._data_source_name),
-                        self._fsm_routine_fn,
-                        self._fsm_routine_cond, 5
-                    )
+                    f'{self._data_source_name}_fsm_worker',
+                    self._fsm_routine_fn,
+                    self._fsm_routine_cond,
+                    5,
+                )
+
                 self._fsm_worker.start_routine()
 
     def stop_fsm_worker(self):
@@ -138,22 +140,20 @@ class MasterFSM(object):
             state = data_source.state
             if self._fallback_failed_state(peer_info):
                 logging.warning("%s at state %d, Peer at state %d "\
-                                "state invalid! abort data source %s",
+                                    "state invalid! abort data source %s",
                                 self._role_repr, state,
                                 peer_info.state, self._data_source_name)
             elif state not in self._fsm_driven_handle:
                 logging.error("%s at error state %d for data_source %s",
                                self._role_repr, state, self._data_source_name)
-            else:
-                state_changed = self._fsm_driven_handle[state](peer_info)
-                if state_changed:
-                    new_state = self._sync_data_source().state
-                    logging.warning("%s state changed from %d to %d",
-                                    self._role_repr, state, new_state)
-                    state = new_state
+            elif state_changed := self._fsm_driven_handle[state](peer_info):
+                new_state = self._sync_data_source().state
+                logging.warning("%s state changed from %d to %d",
+                                self._role_repr, state, new_state)
+                state = new_state
             if state in (common_pb.DataSourceState.Init,
                          common_pb.DataSourceState.Processing) and \
-                    not self._batch_mode:
+                        not self._batch_mode:
                 self._raw_data_manifest_manager.sub_new_raw_data()
 
     def _fsm_routine_cond(self):
@@ -162,32 +162,35 @@ class MasterFSM(object):
     def _sync_data_source(self):
         if self._data_source is None:
             self._data_source = \
-                retrieve_data_source(self._kvstore, self._data_source_name)
-        assert self._data_source is not None, \
-            "data source {} is not in kvstore".format(self._data_source_name)
+                    retrieve_data_source(self._kvstore, self._data_source_name)
+        assert (
+            self._data_source is not None
+        ), f"data source {self._data_source_name} is not in kvstore"
+
         return self._data_source
 
     def _reset_batch_mode(self):
-        if self._batch_mode:
-            data_source = self._sync_data_source()
-            if data_source.state == common_pb.DataSourceState.UnKnown:
-                raise RuntimeError("Failed to reset batch mode since "\
-                                   "DataSource {} at UnKnown state"\
-                                   .format(self._data_source_name))
-            if data_source.state in (common_pb.DataSourceState.Init,
+        if not self._batch_mode:
+            return
+        data_source = self._sync_data_source()
+        if data_source.state == common_pb.DataSourceState.UnKnown:
+            raise RuntimeError(
+                f"Failed to reset batch mode since DataSource {self._data_source_name} at UnKnown state"
+            )
+
+        if data_source.state in (common_pb.DataSourceState.Init,
                                        common_pb.DataSourceState.Processing):
-                logging.info("DataSouce %s at Init/Processing State. Don't "\
+            logging.info("DataSouce %s at Init/Processing State. Don't "\
                              "need reset", self._data_source_name)
-            elif data_source.state == common_pb.DataSourceState.Ready:
-                logging.info("DataSouce %s at Ready. need reset to Processing "\
+        elif data_source.state == common_pb.DataSourceState.Ready:
+            logging.info("DataSouce %s at Ready. need reset to Processing "\
                              "state", self._data_source_name)
-                data_source.state = common_pb.DataSourceState.Processing
-                self._update_data_source(data_source)
-            else:
-                raise RuntimeError("Failed to reset batch mode since Data"\
-                                   "Source {} at Finished/Failed state, Peer"\
-                                   "may delete it"\
-                                   .format(self._data_source_name))
+            data_source.state = common_pb.DataSourceState.Processing
+            self._update_data_source(data_source)
+        else:
+            raise RuntimeError(
+                f"Failed to reset batch mode since DataSource {self._data_source_name} at Finished/Failed state, Peermay delete it"
+            )
 
     def _init_fsm_action(self):
         self._fsm_driven_handle = {
@@ -296,15 +299,13 @@ class MasterFSM(object):
     def _all_partition_finished(self):
         all_manifest = self._raw_data_manifest_manager.list_all_manifest()
         assert len(all_manifest) == \
-                self._data_source.data_source_meta.partition_num, \
-            "manifest number should same with partition number"
-        for manifest in all_manifest.values():
-            if manifest.sync_example_id_rep.state != \
-                    dj_pb.SyncExampleIdState.Synced or \
-                    manifest.join_example_rep.state != \
-                    dj_pb.JoinExampleState.Joined:
-                return False
-        return True
+                    self._data_source.data_source_meta.partition_num, \
+                "manifest number should same with partition number"
+        return not any(
+            manifest.sync_example_id_rep.state != dj_pb.SyncExampleIdState.Synced
+            or manifest.join_example_rep.state != dj_pb.JoinExampleState.Joined
+            for manifest in all_manifest.values()
+        )
 
 class DataJoinMaster(dj_grpc.DataJoinMasterServiceServicer):
     def __init__(self, peer_client, data_source_name,
@@ -324,11 +325,9 @@ class DataJoinMaster(dj_grpc.DataJoinMasterServiceServicer):
     def GetDataSourceStatus(self, request, context):
         self._check_data_source_meta(request.data_source_meta, True)
         data_source = self._fsm.get_data_source()
-        response = dj_pb.DataSourceStatus(
-                role=data_source.role,
-                state=data_source.state
-            )
-        return response
+        return dj_pb.DataSourceStatus(
+            role=data_source.role, state=data_source.state
+        )
 
     def AbortDataSource(self, request, context):
         response = self._check_data_source_meta(request.data_source_meta)
@@ -351,13 +350,13 @@ class DataJoinMaster(dj_grpc.DataJoinMasterServiceServicer):
         if data_source.state != common_pb.DataSourceState.Processing:
             response.status.code = -3
             response.status.error_message = \
-                    "data source is not at processing state"
+                        "data source is not at processing state"
         else:
             manifest_manager = self._fsm.get_mainifest_manager()
             rank_id = request.rank_id
             manifest = None
             partition_id = None if request.partition_id < 0 \
-                    else request.partition_id
+                        else request.partition_id
             if request.HasField('sync_example_id'):
                 manifest = manifest_manager.alloc_sync_exampld_id(
                         rank_id, partition_id
@@ -374,8 +373,8 @@ class DataJoinMaster(dj_grpc.DataJoinMasterServiceServicer):
                     response.manifest.MergeFrom(manifest)
                 else:
                     assert partition_id is None, \
-                        "only the request without appoint partition "\
-                        "support response no manifest"
+                            "only the request without appoint partition "\
+                            "support response no manifest"
                     response.finished.MergeFrom(empty_pb2.Empty())
         return response
 
@@ -406,8 +405,7 @@ class DataJoinMaster(dj_grpc.DataJoinMasterServiceServicer):
     def QueryRawDataManifest(self, request, context):
         self._check_data_source_meta(request.data_source_meta, True)
         manifest_manager = self._fsm.get_mainifest_manager()
-        manifest = manifest_manager.get_manifest(request.partition_id)
-        return manifest
+        return manifest_manager.get_manifest(request.partition_id)
 
     def FinishRawData(self, request, context):
         response = self._check_data_source_meta(request.data_source_meta)
@@ -415,14 +413,14 @@ class DataJoinMaster(dj_grpc.DataJoinMasterServiceServicer):
             if self._options.batch_mode:
                 response.code = -2
                 response.error_message = "Forbid to finish raw data since "\
-                                         "master run in batch mode"
+                                             "master run in batch mode"
             elif request.HasField('finish_raw_data'):
                 manifest_manager = self._fsm.get_mainifest_manager()
                 manifest_manager.finish_raw_data(request.partition_id)
             else:
                 response.code = -3
                 response.error_message = \
-                    "FinishRawData should has finish_raw_data"
+                        "FinishRawData should has finish_raw_data"
         return response
 
     def AddRawData(self, request, context):
@@ -478,35 +476,35 @@ class DataJoinMaster(dj_grpc.DataJoinMasterServiceServicer):
         return response
 
     def _check_data_source_meta(self, remote_meta, raise_exp=False):
-        if self._data_source_meta != remote_meta:
-            local_meta = self._data_source_meta
-            if local_meta.name != remote_meta.name:
-                logging.error("data_source_meta mismtach since name "\
+        if self._data_source_meta == remote_meta:
+            return common_pb.Status(code=0)
+        local_meta = self._data_source_meta
+        if local_meta.name != remote_meta.name:
+            logging.error("data_source_meta mismtach since name "\
                               "%s != %s", local_meta.name, remote_meta.name)
-            if local_meta.partition_num != remote_meta.partition_num:
-                logging.error("data_source_meta mismatch since partition "\
+        if local_meta.partition_num != remote_meta.partition_num:
+            logging.error("data_source_meta mismatch since partition "\
                               "num %d != %d", local_meta.partition_num,
-                              remote_meta.partition_num)
-            if local_meta.start_time != remote_meta.start_time:
-                logging.error("data_source_meta mismatch since start_time "\
+                          remote_meta.partition_num)
+        if local_meta.start_time != remote_meta.start_time:
+            logging.error("data_source_meta mismatch since start_time "\
                               "%d != %d",
-                              local_meta.start_time, remote_meta.start_time)
-            if local_meta.end_time != remote_meta.end_time:
-                logging.error("data_source_meta mismatch since end_time "\
+                          local_meta.start_time, remote_meta.start_time)
+        if local_meta.end_time != remote_meta.end_time:
+            logging.error("data_source_meta mismatch since end_time "\
                               "%d != %d",
-                              local_meta.end_time, remote_meta.end_time)
-            if local_meta.negative_sampling_rate != \
+                          local_meta.end_time, remote_meta.end_time)
+        if local_meta.negative_sampling_rate != \
                     remote_meta.negative_sampling_rate:
-                logging.error("data_source_meta mismatch since negative_"\
+            logging.error("data_source_meta mismatch since negative_"\
                               "sampling_rate %f != %f",
-                              local_meta.negative_sampling_rate,
-                              remote_meta.negative_sampling_rate)
-            if raise_exp:
-                raise RuntimeError("data source meta mismatch")
-            return common_pb.Status(
-                    code=-1, error_message="data source meta mismatch"
-                )
-        return common_pb.Status(code=0)
+                          local_meta.negative_sampling_rate,
+                          remote_meta.negative_sampling_rate)
+        if raise_exp:
+            raise RuntimeError("data source meta mismatch")
+        return common_pb.Status(
+                code=-1, error_message="data source meta mismatch"
+            )
 
     def _check_rank_id(self, rank_id):
         if rank_id < 0:

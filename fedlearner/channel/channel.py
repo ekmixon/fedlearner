@@ -138,7 +138,7 @@ class Channel():
         # identifier
         self._identifier = uuid.uuid4().hex[:16]
         self._peer_identifier = ""
-        self._token = token if token else ""
+        self._token = token or ""
 
         # lock & condition
         self._lock = threading.RLock()
@@ -239,9 +239,12 @@ class Channel():
             with self._lock:
                 self._emit_error(ChannelError("unidentified"))
         else:
-            self._emit_error(ChannelError("unexcepted response code {} "
-                "for channel resonse".format(
-                    channel_pb2.Code.Name(response.code))))
+            self._emit_error(
+                ChannelError(
+                    f"unexcepted response code {channel_pb2.Code.Name(response.code)} for channel resonse"
+                )
+            )
+
         self._raise_if_error()
 
     def _regiser_channel_interceptor_method(self, method,
@@ -302,8 +305,7 @@ class Channel():
     #                  " state: %s", state.name)
 
     def _next_state(self, state, event):
-        next_state = Channel._next_table[state].get(event)
-        if next_state:
+        if next_state := Channel._next_table[state].get(event):
             return next_state
         return state
 
@@ -442,9 +444,8 @@ class Channel():
             else:
                 self._emit_error(ChannelError("unidentified"))
         else:
-            msg = "unexcepted code: {} for call type: {}".format(
-                channel_pb2.Code.Name(res.code),
-                channel_pb2.CallType.Name(call_type))
+            msg = f"unexcepted code: {channel_pb2.Code.Name(res.code)} for call type: {channel_pb2.CallType.Name(call_type)}"
+
             self._emit_error(ChannelError(msg))
         return False
 
@@ -476,9 +477,12 @@ class Channel():
             # check disconnected
             if self._state not in Channel._CONNECTING_STATES:
                 if now >= self._heartbeat_timeout_at:
-                    self._emit_error(ChannelError(
-                        "disconnected by heartbeat timeout: {}s".format(
-                            self._heartbeat_timeout)))
+                    self._emit_error(
+                        ChannelError(
+                            f"disconnected by heartbeat timeout: {self._heartbeat_timeout}s"
+                        )
+                    )
+
                     continue
                 wait_timeout = min(wait_timeout,
                                    self._heartbeat_timeout_at-now)
@@ -486,9 +490,12 @@ class Channel():
             # check peer disconnected
             if self._state not in Channel._PEER_UNCONNECTED_STATES:
                 if now >= self._peer_heartbeat_timeout_at:
-                    self._emit_error(ChannelError(
-                        "peer disconnected by heartbeat timeout: {}s".format(
-                            self._heartbeat_timeout)))
+                    self._emit_error(
+                        ChannelError(
+                            f"peer disconnected by heartbeat timeout: {self._heartbeat_timeout}s"
+                        )
+                    )
+
                     continue
                 wait_timeout = min(wait_timeout,
                                    self._peer_heartbeat_timeout_at-now)
@@ -568,10 +575,7 @@ class Channel():
                     self._server_interceptor.set_peer_identifier(
                         self._peer_identifier)
 
-        if self._peer_identifier != identifier:
-            return False
-
-        return True
+        return self._peer_identifier == identifier
 
     def _call_handler(self, request, context):
         if not self._check_token(request.token):

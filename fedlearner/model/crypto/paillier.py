@@ -59,7 +59,7 @@ class PaillierPublicKey(object):
 
     def __repr__(self):
         hashcode = hex(hash(self))[2:]
-        return "<PaillierPublicKey {}>".format(hashcode[:10])
+        return f"<PaillierPublicKey {hashcode[:10]}>"
 
     def __eq__(self, other):
         return self.n == other.n
@@ -79,8 +79,7 @@ class PaillierPublicKey(object):
         """
         """
         if not isinstance(plaintext, int):
-            raise TypeError("plaintext should be int, but got: %s" %
-                            type(plaintext))
+            raise TypeError(f"plaintext should be int, but got: {type(plaintext)}")
 
         if plaintext >= (self.n - self.max_int) and plaintext < self.n:
             # Very large plaintext, take a sneaky shortcut using inverses
@@ -99,16 +98,14 @@ class PaillierPublicKey(object):
         """
         encoding = FixedPointNumber.encode(value, self.n, self.max_int, precision)
         ciphertext = self.raw_encrypt(encoding.encoding, random_value=random_value)
-        encryptednumber = PaillierEncryptedNumber(self, ciphertext, encoding.exponent)
-
-        return encryptednumber
+        return PaillierEncryptedNumber(self, ciphertext, encoding.exponent)
 
 
 class PaillierPrivateKey(object):
     """Contains a private key and associated decryption method.
     """
     def __init__(self, public_key, p, q):
-        if not p * q == public_key.n:
+        if p * q != public_key.n:
             raise ValueError("given public key does not match the given p and q")
         if p == q:
             raise ValueError("p and q have to be different")
@@ -134,7 +131,7 @@ class PaillierPrivateKey(object):
     def __repr__(self):
         hashcode = hex(hash(self))[2:]
 
-        return "<PaillierPrivateKey {}>".format(hashcode[:10])
+        return f"<PaillierPrivateKey {hashcode[:10]}>"
 
     def h_func(self, x, xsquare):
         """Computes the h-function as defined in Paillier's paper page.
@@ -153,16 +150,13 @@ class PaillierPrivateKey(object):
            return the solution modulo n=pq.
        """
         u = (mp - mq) * self.q_inverse % self.p
-        x = (mq + (u * self.q)) % self.public_key.n
-
-        return x
+        return (mq + (u * self.q)) % self.public_key.n
 
     def raw_decrypt(self, ciphertext):
         """return raw plaintext.
         """
         if not isinstance(ciphertext, int):
-            raise TypeError("ciphertext should be an int, not: %s" %
-                type(ciphertext))
+            raise TypeError(f"ciphertext should be an int, not: {type(ciphertext)}")
 
         mp = self.l_func(gmpy_math.powmod(ciphertext,
                                               self.p-1, self.psquare),
@@ -189,9 +183,7 @@ class PaillierPrivateKey(object):
                              encrypted_number.exponent,
                              self.public_key.n,
                              self.public_key.max_int)
-        decrypt_value = encoded.decode()
-
-        return decrypt_value
+        return encoded.decode()
 
 
 class PaillierEncryptedNumber(object):
@@ -204,10 +196,12 @@ class PaillierEncryptedNumber(object):
         self.__is_obfuscator = False
 
         if not isinstance(self.__ciphertext, int):
-            raise TypeError("ciphertext should be an int, not: %s" % type(self.__ciphertext))
+            raise TypeError(f"ciphertext should be an int, not: {type(self.__ciphertext)}")
 
         if not isinstance(self.public_key, PaillierPublicKey):
-            raise TypeError("public_key should be a PaillierPublicKey, not: %s" % type(self.public_key))
+            raise TypeError(
+                f"public_key should be a PaillierPublicKey, not: {type(self.public_key)}"
+            )
 
     def ciphertext(self, be_secure=True):
         """return the ciphertext of the PaillierEncryptedNumber.
@@ -309,9 +303,7 @@ class PaillierEncryptedNumber(object):
         x, y = self.__align_exponent(self, encoded)
 
         encrypted_scalar = x.public_key.raw_encrypt(y.encoding, 1)
-        encryptednumber = self.__raw_add(x.ciphertext(False), encrypted_scalar, x.exponent)
-
-        return encryptednumber
+        return self.__raw_add(x.ciphertext(False), encrypted_scalar, x.exponent)
 
     def __add_encryptednumber(self, other):
         """return PaillierEncryptedNumber: z = E(x) + E(y)
@@ -322,9 +314,7 @@ class PaillierEncryptedNumber(object):
         # their exponents must match, and align.
         x, y = self.__align_exponent(self, other)
 
-        encryptednumber = self.__raw_add(x.ciphertext(False), y.ciphertext(False), x.exponent)
-
-        return encryptednumber
+        return self.__raw_add(x.ciphertext(False), y.ciphertext(False), x.exponent)
 
     def __raw_add(self, e_x, e_y, exponent):
         """return the integer E(x + y) given ints E(x) and E(y).

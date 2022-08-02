@@ -35,13 +35,13 @@ class DataBlockDumperManager(object):
         self._data_source = data_source
         self._partition_id = partition_id
         self._data_block_manager = \
-                DataBlockManager(data_source, partition_id)
+                    DataBlockManager(data_source, partition_id)
         self._raw_data_visitor = \
-                RawDataVisitor(kvstore, data_source,
+                    RawDataVisitor(kvstore, data_source,
                                partition_id, raw_data_options)
         self._data_block_builder_options = data_block_builder_options
         self._next_data_block_index = \
-                self._data_block_manager.get_dumped_data_block_count()
+                    self._data_block_manager.get_dumped_data_block_count()
         self._fly_data_block_meta = []
         self._state_stale = False
         self._synced_data_block_meta_finished = False
@@ -122,9 +122,10 @@ class DataBlockDumperManager(object):
 
     @contextmanager
     def _make_data_block_builder(self, meta):
-        assert self._partition_id == meta.partition_id, \
-            "partition id of building data block meta mismatch "\
-            "{} != {}".format(self._partition_id, meta.partition_id)
+        assert (
+            self._partition_id == meta.partition_id
+        ), f"partition id of building data block meta mismatch {self._partition_id} != {meta.partition_id}"
+
         builder = None
         expt = None
         try:
@@ -140,7 +141,7 @@ class DataBlockDumperManager(object):
             yield builder
         except Exception as e: # pylint: disable=broad-except
             logging.warning("Failed make data block builder, " \
-                             "reason %s", e)
+                                 "reason %s", e)
             expt = e
         if builder is not None:
             del builder
@@ -155,7 +156,7 @@ class DataBlockDumperManager(object):
                     self._raw_data_visitor.reset()
                 else:
                     assert meta.leader_start_index > 0, \
-                        "leader start index must be positive"
+                            "leader start index must be positive"
                     self._raw_data_visitor.seek(meta.leader_start_index-1)
             except StopIteration:
                 logging.fatal("raw data finished before when seek to %d",
@@ -175,7 +176,7 @@ class DataBlockDumperManager(object):
                 joined = False
                 # Elements in meta.example_ids maybe duplicated
                 while match_index < example_num and \
-                        if_match(meta, match_index, index, example_id, is_v2):
+                            if_match(meta, match_index, index, example_id, is_v2):
                     if len(meta.joined) > 0:
                         item.add_extra_fields({
                             'joined': meta.joined[match_index]}, True)
@@ -200,7 +201,7 @@ class DataBlockDumperManager(object):
             dumped_meta = data_block_builder.finish_data_block(True)
             self._optional_stats.emit_optional_stats()
             assert dumped_meta == meta, "the generated dumped meta should "\
-                                        "be the same with input mata"
+                                            "be the same with input mata"
             with self._lock:
                 assert self._fly_data_block_meta[0] == meta
                 self._fly_data_block_meta.pop(0)
@@ -215,7 +216,7 @@ class DataBlockDumperManager(object):
 
     def _evict_dumped_data_block_meta(self):
         next_data_block_index = \
-                self._data_block_manager.get_dumped_data_block_count()
+                    self._data_block_manager.get_dumped_data_block_count()
         with self._lock:
             skip_count = 0
             for meta in self._fly_data_block_meta:
@@ -223,4 +224,4 @@ class DataBlockDumperManager(object):
                     break
                 skip_count += 1
             self._fly_data_block_meta = \
-                    self._fly_data_block_meta[skip_count:]
+                        self._fly_data_block_meta[skip_count:]

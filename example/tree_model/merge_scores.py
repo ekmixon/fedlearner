@@ -60,29 +60,40 @@ def merge(args, left_file, right_file, out_file):
     left_fields = args.left_select_fields.strip().split(',')
     right_fields = args.right_select_fields.strip().split(',')
     for i in left_fields:
-        assert i in left_reader.fieldnames, \
-            "Field %s missing in left file %s"%(i, left_file)
-    for i in right_fields:
-        assert i in right_reader.fieldnames, \
-            "Field %s missing in right file %s"%(i, right_file)
+        assert (
+            i in left_reader.fieldnames
+        ), f"Field {i} missing in left file {left_file}"
 
-    writer = csv.DictWriter(tf.io.gfile.GFile(out_file+'.tmp', 'w'),
-                            fieldnames=left_fields + right_fields)
+    for i in right_fields:
+        assert (
+            i in right_reader.fieldnames
+        ), f"Field {i} missing in right file {right_file}"
+
+
+    writer = csv.DictWriter(
+        tf.io.gfile.GFile(f'{out_file}.tmp', 'w'),
+        fieldnames=left_fields + right_fields,
+    )
+
     writer.writeheader()
 
     for lline, rline in itertools.zip_longest(left_reader, right_reader):
-        assert lline is not None, \
-            "left file %s is shorter than right file %s"%(
-                left_file, right_file)
-        assert rline is not None, \
-            "right file %s is shorter than left file %s"%(
-                right_file, left_file)
-        output = {i: lline[i] for i in left_fields}
-        output.update({i: rline[i] for i in right_fields})
+        assert (
+            lline is not None
+        ), f"left file {left_file} is shorter than right file {right_file}"
+
+        assert (
+            rline is not None
+        ), f"right file {right_file} is shorter than left file {left_file}"
+
+        output = {i: lline[i] for i in left_fields} | {
+            i: rline[i] for i in right_fields
+        }
+
         writer.writerow(output)
 
     logging.info("Renaming %s.tmp to %s", out_file, out_file)
-    tf.io.gfile.rename(out_file+'.tmp', out_file, overwrite=True)
+    tf.io.gfile.rename(f'{out_file}.tmp', out_file, overwrite=True)
 
 
 def run(args):
@@ -105,11 +116,11 @@ def run(args):
         if left_block is None:
             assert right_block is None
             break
-        assert left_block.block_id == right_block.block_id, \
-            "Block id does not match: %s vs %s"%(
-                left_block.block_id, right_block.block_id)
-        output_file = os.path.join(
-            args.output_path, left_block.block_id + '.output')
+        assert (
+            left_block.block_id == right_block.block_id
+        ), f"Block id does not match: {left_block.block_id} vs {right_block.block_id}"
+
+        output_file = os.path.join(args.output_path, f'{left_block.block_id}.output')
         merge(args, left_block.data_path, right_block.data_path, output_file)
 
 if __name__ == '__main__':

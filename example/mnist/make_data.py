@@ -47,17 +47,23 @@ for i in range(N):
 
     for j in range(chunk_size):
         idx = i*chunk_size + j
-        features_l = {}
-        features_l['example_id'] = Feature(
-            bytes_list=BytesList(value=[str(idx).encode('utf-8')]))
+        features_l = {
+            'example_id': Feature(
+                bytes_list=BytesList(value=[str(idx).encode('utf-8')])
+            )
+        }
+
         features_l['y'] = Feature(int64_list=Int64List(value=[y[idx]]))
         features_l['x'] = Feature(float_list=FloatList(value=list(xl[idx])))
         fl.write(
             Example(features=Features(feature=features_l)).SerializeToString())
 
-        features_f = {}
-        features_f['example_id'] = Feature(
-            bytes_list=BytesList(value=[str(idx).encode('utf-8')]))
+        features_f = {
+            'example_id': Feature(
+                bytes_list=BytesList(value=[str(idx).encode('utf-8')])
+            )
+        }
+
         features_f['x'] = Feature(float_list=FloatList(value=list(xf[idx])))
         ff.write(
             Example(features=Features(feature=features_f)).SerializeToString())

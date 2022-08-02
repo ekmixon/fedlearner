@@ -81,9 +81,7 @@ class RawDataSortPartitioner(RawDataPartitioner):
                 return 1
             if a.example_id < b.example_id:
                 return -1
-            if a.example_id > b.example_id:
-                return 1
-            return 0
+            return 1 if a.example_id > b.example_id else 0
 
     def _get_file_writer(self, partition_id):
         if len(self._flying_writers) == 0:
@@ -141,8 +139,7 @@ class DataPortalWorker(object):
 
     def _make_partitioner_options(self, task):
         return dj_pb.RawDataPartitionerOptions(
-            partitioner_name="{}-rank_{}".format(task.task_name,
-                                                 self._rank_id),
+            partitioner_name=f"{task.task_name}-rank_{self._rank_id}",
             input_file_paths=task.fpaths,
             output_dir=task.output_base_dir,
             output_partition_num=task.output_partition_num,
@@ -150,18 +147,17 @@ class DataPortalWorker(object):
             batch_processor_options=self._options.batch_processor_options,
             raw_data_options=self._options.raw_data_options,
             writer_options=self._options.writer_options,
-            memory_limit_ratio=self._options.memory_limit_ratio
+            memory_limit_ratio=self._options.memory_limit_ratio,
         )
 
     def _make_merger_options(self, task):
         return dj_pb.SortRunMergerOptions(
-            merger_name="{}-rank_{}".format(task.task_name,
-                                            self._rank_id),
+            merger_name=f"{task.task_name}-rank_{self._rank_id}",
             reader_options=dj_pb.RawDataOptions(
                 raw_data_iter=self._options.writer_options.output_writer,
                 compressed_type=self._options.writer_options.compressed_type,
                 read_ahead_size=self._options.merger_read_ahead_size,
-                read_batch_size=self._options.merger_read_batch_size
+                read_batch_size=self._options.merger_read_batch_size,
             ),
             writer_options=self._options.writer_options,
             output_file_dir=task.reduce_base_dir,
@@ -186,14 +182,14 @@ class DataPortalWorker(object):
             )
             type_repr = 'psi'
         logging.info("Partitioner rank_id-[%d] start run task %s of type %s "\
-                     "for partition %d, input %d files", self._rank_id,
+                         "for partition %d, input %d files", self._rank_id,
                      partition_options.partitioner_name, type_repr,
                      partition_options.partitioner_rank_id,
                      len(partition_options.input_file_paths))
         data_partitioner.start_process()
         data_partitioner.wait_for_finished()
         logging.info("Partitioner rank_id-[%d] finish run partition task %s "\
-                     "for partition %d.", self._rank_id,
+                         "for partition %d.", self._rank_id,
                      partition_options.partitioner_name,
                      partition_options.partitioner_rank_id)
         del data_partitioner

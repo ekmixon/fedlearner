@@ -267,7 +267,7 @@ class RawDataPartitioner(object):
     def _raw_data_part_fn(self):
         if self._check_finished_tag():
             logging.warning("raw data has been parttedfor rank id of parti"\
-                            "tioner %d", self._options.partitioner_rank_id)
+                                "tioner %d", self._options.partitioner_rank_id)
             self._notify_part_finished()
             return
         self._sync_partitioner_state()
@@ -281,20 +281,20 @@ class RawDataPartitioner(object):
         round_dumped_item = 0
         while not fetch_finished:
             fetch_finished, batch, hint_index = \
-                    fetcher.fetch_item_batch_by_index(next_index, hint_index)
+                        fetcher.fetch_item_batch_by_index(next_index, hint_index)
             if batch is not None:
                 for index, item in enumerate(batch):
                     raw_id = getattr(item, self._part_field)
                     partition_id = CityHash32(raw_id) % \
-                            self._options.output_partition_num
+                                self._options.output_partition_num
                     writer = self._get_file_writer(partition_id)
                     writer.append_item(batch.begin_index+index, item)
                 next_index += len(batch)
                 round_dumped_item += len(batch)
                 fly_item_cnt = fetcher.get_flying_item_count()
                 if round_dumped_item // self._options.output_partition_num \
-                        > (1<<21) or \
-                        common.get_heap_mem_stats(None).CheckOomRisk(
+                            > (1<<21) or \
+                            common.get_heap_mem_stats(None).CheckOomRisk(
                             fly_item_cnt,
                             self._options.memory_limit_ratio-0.05):
                     self._finish_file_writers()
@@ -304,7 +304,7 @@ class RawDataPartitioner(object):
                     logging.info("consumed %d items", next_index-1)
                     gc_cnt = gc.collect()
                     logging.warning("finish writer partition trigger "\
-                                    "gc %d actively", gc_cnt)
+                                        "gc %d actively", gc_cnt)
                     round_dumped_item = 0
                     self._wakeup_raw_data_fetcher()
             elif not fetch_finished:
@@ -361,9 +361,7 @@ class RawDataPartitioner(object):
                 staless_index
             )
         if hint_index is not None:
-            if hint_index <= evict_cnt:
-                return 0
-            return hint_index-evict_cnt
+            return 0 if hint_index <= evict_cnt else hint_index-evict_cnt
         return None
 
     def _set_next_part_index(self, next_part_index):
@@ -389,10 +387,10 @@ class RawDataPartitioner(object):
                 if end_meta is None:
                     continue
                 if min_process_index is None or \
-                        min_process_index > end_meta.process_index:
+                            min_process_index > end_meta.process_index:
                     min_process_index = end_meta.process_index
                 if max_process_index is None or \
-                        max_process_index < end_meta.process_index:
+                            max_process_index < end_meta.process_index:
                     max_process_index = end_meta.process_index
             if max_process_index is None or min_process_index is None:
                 self._dumped_process_index = -1
@@ -403,14 +401,13 @@ class RawDataPartitioner(object):
         max_dumped_index = -1
         for partition_id, metas in self._dumped_file_metas.items():
             for meta in metas[::-1]:
-                if meta.process_index > self._dumped_process_index:
-                    fpath = os.path.join(self._options.output_dir,
-                                         common.partition_repr(partition_id),
-                                         meta.encode_meta_to_fname())
-                    if gfile.Exists(fpath):
-                        gfile.Remove(fpath)
-                else:
+                if meta.process_index <= self._dumped_process_index:
                     break
+                fpath = os.path.join(self._options.output_dir,
+                                     common.partition_repr(partition_id),
+                                     meta.encode_meta_to_fname())
+                if gfile.Exists(fpath):
+                    gfile.Remove(fpath)
             metas = metas[:self._dumped_process_index+1]
             self._dumped_file_metas[partition_id] = metas
             if len(metas) > 0 and metas[-1].end_index > max_dumped_index:

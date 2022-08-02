@@ -41,7 +41,7 @@ class EtcdClient(object):
 
     def __init__(self, name, addrs, base_dir, use_mock_etcd=False):
         self._name = name
-        self._base_dir = '/' + EtcdClient._normalize_input_key(base_dir)
+        self._base_dir = f'/{EtcdClient._normalize_input_key(base_dir)}'
         self._addrs = self._normalize_addr(addrs)
         if len(self._addrs) == 0:
             raise ValueError('Empty hosts EtcdClient')
@@ -117,18 +117,16 @@ class EtcdClient(object):
                 if port < 0 or port > 65535:
                     raise ValueError('port {} is out of range')
             except ValueError:
-                raise ValueError('{} is not a valid port'.format(port_str))
+                raise ValueError(f'{port_str} is not a valid port')
             naddrs.append((host, port))
         return naddrs
 
     @staticmethod
     def _normalize_input_key(key):
         skip_cnt = 0
-        while key[skip_cnt] == '.' or key[skip_cnt] == '/':
+        while key[skip_cnt] in ['.', '/']:
             skip_cnt += 1
-        if skip_cnt > 0:
-            return key[skip_cnt:]
-        return key
+        return key[skip_cnt:] if skip_cnt > 0 else key
 
     @staticmethod
     def normalize_output_key(key, base_dir):
@@ -168,11 +166,11 @@ class EtcdClient(object):
             with cls.ETCD_CLIENT_POOL_LOCK:
                 if cls.ETCD_CLIENT_POOL_DESTORY:
                     clnt.close()
+                elif name in cls.ETCD_CLIENT_POOL:
+                    cls.ETCD_CLIENT_POOL[name].append(clnt)
+
                 else:
-                    if name not in cls.ETCD_CLIENT_POOL:
-                        cls.ETCD_CLIENT_POOL[name] = [clnt]
-                    else:
-                        cls.ETCD_CLIENT_POOL[name].append(clnt)
+                    cls.ETCD_CLIENT_POOL[name] = [clnt]
 
     @classmethod
     def destroy_client_pool(cls):

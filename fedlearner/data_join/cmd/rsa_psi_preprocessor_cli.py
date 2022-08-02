@@ -101,12 +101,11 @@ if __name__ == "__main__":
     all_fpaths = []
     if len(args.input_file_subscribe_dir) == 0:
         if args.input_file_paths is not None:
-            for fp in args.input_file_paths:
-                all_fpaths.append(fp)
+            all_fpaths.extend(iter(args.input_file_paths))
         if args.input_dir is not None:
             all_fpaths += [os.path.join(args.input_dir, f)
                            for f in gfile.ListDirectory(args.input_dir)]
-        if len(all_fpaths) == 0:
+        if not all_fpaths:
             raise RuntimeError("no input files for preprocessor")
     rsa_key_pem = args.rsa_key_pem
     if rsa_key_pem is None or len(rsa_key_pem) == 0:
@@ -116,8 +115,7 @@ if __name__ == "__main__":
     offload_processor_number = args.preprocessor_offload_processor_number
     if offload_processor_number < 0:
         offload_processor_number = int(os.environ.get('CPU_LIMIT', '2')) - 1
-    if offload_processor_number < 1:
-        offload_processor_number = 1
+    offload_processor_number = max(offload_processor_number, 1)
     preprocessor_options = dj_pb.RsaPsiPreProcessorOptions(
             preprocessor_name=args.preprocessor_name,
             rsa_key_pem=rsa_key_pem,

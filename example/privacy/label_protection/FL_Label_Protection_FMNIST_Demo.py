@@ -23,9 +23,7 @@ parser.add_argument('--sumKL', action='store_true')
 parser.add_argument('--debug', action='store_true')
 args = parser.parse_args()
 
-gpu_option = args.gpu_option
-
-if gpu_option:
+if gpu_option := args.gpu_option:
     gpus = tf.config.experimental.list_physical_devices('GPU')
     print("Num GPUs Available: ", len(gpus))
     if gpus:
@@ -38,8 +36,10 @@ if gpu_option:
 else:
     os.environ['KMP_DUPLICATE_LIB_OK'] = 'True'
 
-print("current available GPUs: {}".format(
-    len(tf.config.experimental.list_physical_devices('GPU'))))
+print(
+    f"current available GPUs: {len(tf.config.experimental.list_physical_devices('GPU'))}"
+)
+
 
 # batch_size = args.batch_size
 batch_size_test = 200
@@ -54,18 +54,14 @@ total_test_instances = len(x_test)
 num_batchs = total_training_instances / args.batch_size
 
 print(
-    "# training: {}, # test: {}, # batchs: {}".format(
-        total_training_instances,
-        total_test_instances,
-        num_batchs))
+    f"# training: {total_training_instances}, # test: {total_test_instances}, # batchs: {num_batchs}"
+)
 
 
 def change_label(y, ratio=10):
     def condition(x):
-        if x == 1:
-            if random.randint(0, ratio) <= 1:
-                return 1
-        return 0
+        return 1 if x == 1 and random.randint(0, ratio) <= 1 else 0
+
     l = [1 if i == 1 else 0 for i in y]
     res = np.array(list(map(condition, l)))
     # res = np.array(list(map(lambda x: condition(x), l)))
@@ -100,11 +96,7 @@ def get_fashion_mnist_labels(labels):
     return [text_labels[int(i)] for i in labels]
 
 
-if sys.platform.startswith('win'):
-    num_workers = 0
-else:
-    num_workers = 4
-
+num_workers = 0 if sys.platform.startswith('win') else 4
 num_inputs = 784
 
 if args.debug:
@@ -160,8 +152,7 @@ def cross_entropy(y_hat, y):
 
 def sigmoid_cross_entropy(y_hat, y):
     y = tf.cast(tf.reshape(y, shape=[-1, 1]), dtype=tf.float32)
-    loss = tf.nn.sigmoid_cross_entropy_with_logits(labels=y, logits=y_hat)
-    return loss
+    return tf.nn.sigmoid_cross_entropy_with_logits(labels=y, logits=y_hat)
 
 
 train_auc = tf.keras.metrics.AUC()
@@ -299,15 +290,7 @@ def KL_gradient_perturb(x):
         # d = float(g.shape[1])
         # d = float(tf.shape(g)[1])
         d = tf.cast(tf.shape(g)[1], dtype=tf.float32)
-        if p_frac == 'pos_frac':
-            # p = float(tf.math.reduce_mean(y))
-            # p = float(tf.reshape(tf.math.reduce_mean(y), []))
-            p = tf.math.reduce_mean(y)
-            # p = float(tf.reduce_sum(y) / len(y)) # p is set as the fraction
-            # of positive in the batch
-        else:
-            p = float(p_frac)
-
+        p = tf.math.reduce_mean(y) if p_frac == 'pos_frac' else float(p_frac)
         scale = init_scale
         g_norm_square = g_diff_norm ** 2
 
@@ -505,10 +488,6 @@ def KL_gradient_perturb(x):
 
             return lam10, lam20, lam11, lam21, sumKL
 
-        # tensorflow 1.x
-        # lam10, lam20, lam11, lam21, sumKL =
-        # tf.py_func(compute_lambdas_tf1, [u, v, scale, d, g_norm_square, p, \
-                                                # sumKL_threshold,
         # pos_g_mean, neg_g_mean, g_diff], [tf.float32, tf.float32, tf.float32,
         # tf.float32, tf.float32])
 
@@ -565,9 +544,9 @@ def compute_gradient_norm(gradient, label):
     pos_g_norm = tf.boolean_mask(g_norm, label)
     neg_label = tf.cast(label < 1.0, dtype=tf.float32)
     neg_g_norm = tf.boolean_mask(g_norm, neg_label)
-    print("g_norm: {}".format(g_norm))
-    print("pos_norm: {}".format(pos_g_norm))
-    print("neg_norm: {}".format(neg_g_norm))
+    print(f"g_norm: {g_norm}")
+    print(f"pos_norm: {pos_g_norm}")
+    print(f"neg_norm: {neg_g_norm}")
     return g_norm, pos_g_norm, neg_g_norm
 
 
@@ -587,12 +566,11 @@ def middle_attack(gradient, label, select_positive=True):
     norm_label = tf.gather(g_norm_label, indices)
     zero = tf.constant(0, dtype=tf.float32)
     mask = tf.not_equal(norm_label, zero)
-    res = tf.where(mask)
     # res = tf.sort(res, axis = -1, direction = "DESCENDING")
     # print("positive_instances: {}, # instances: {},  norm rank indices:
     # mean: {}, min: {}, max: {}".format(select_positive, res.shape,
     # tf.reduce_mean(res), tf.reduce_min(res), tf.reduce_max(res)))
-    return res
+    return tf.where(mask)
 
 
 def train(

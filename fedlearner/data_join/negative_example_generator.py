@@ -38,13 +38,12 @@ class NegativeExampleGenerator(object):
         self._buf.update(mismatches)
 
     def _skip(self, idx):
-        filtered = True
-        if self._filter_expr and \
-           not self._filter_expr.run_func(0)(self._buf[idx], None):
-            filtered = False
-        if filtered and random.random() <= self._negative_sampling_rate:
-            return False
-        return True
+        filtered = bool(
+            not self._filter_expr
+            or self._filter_expr.run_func(0)(self._buf[idx], None)
+        )
+
+        return not filtered or random.random() > self._negative_sampling_rate
 
     def generate(self, item, leader_idx):
         for idx in range(self._prev_index, leader_idx):

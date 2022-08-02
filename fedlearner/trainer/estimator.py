@@ -61,7 +61,7 @@ class FLModel(object):
         self._sends.append((name, tensor, require_grad))
         if require_grad:
             with tf.control_dependencies([send_op]):
-                return self.recv(name + '_grad', tensor.dtype)
+                return self.recv(f'{name}_grad', tensor.dtype)
         else:
             self._train_ops.append(send_op)
 
@@ -96,8 +96,8 @@ class FLModel(object):
 
         if var_list is None:
             var_list = \
-                tf.get_collection(tf.GraphKeys.TRAINABLE_VARIABLES) + \
-                tf.get_collection(tf.GraphKeys.TRAINABLE_RESOURCE_VARIABLES)
+                    tf.get_collection(tf.GraphKeys.TRAINABLE_VARIABLES) + \
+                    tf.get_collection(tf.GraphKeys.TRAINABLE_RESOURCE_VARIABLES)
         var_list = [v for _, v, _ in recv_grads] + var_list
 
         grads_and_vars = optimizer.compute_gradients(
@@ -111,17 +111,17 @@ class FLModel(object):
         send_grads = grads_and_vars[:len(recv_grads)]
         for (n, _, _), (grad, _) in zip(recv_grads, send_grads):
             if grad is not None:
-                self.send(n + '_grad', grad)
+                self.send(f'{n}_grad', grad)
 
-        if grads_and_vars[len(recv_grads):]:
-            train_op = optimizer.apply_gradients(
-                grads_and_vars[len(recv_grads):],
+        return (
+            optimizer.apply_gradients(
+                grads_and_vars[len(recv_grads) :],
                 global_step=global_step,
-                name=name)
-        else:
-            train_op = tf.no_op()
-
-        return train_op
+                name=name,
+            )
+            if grads_and_vars[len(recv_grads) :]
+            else tf.no_op()
+        )
 
     def make_spec(self,
                   mode,
@@ -295,6 +295,8 @@ def _dict_to_str(dictionary):
     Returns:
         A `str` representing the `dictionary`.
     """
-    return ', '.join('%s = %s' % (k, v)
-                     for k, v in sorted(dictionary.items())
-                     if not isinstance(v, bytes))
+    return ', '.join(
+        f'{k} = {v}'
+        for k, v in sorted(dictionary.items())
+        if not isinstance(v, bytes)
+    )

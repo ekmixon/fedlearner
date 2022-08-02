@@ -19,13 +19,13 @@ from fedlearner.common import stats
 class _GlobalContext:
     def __init__(self):
         self.job = os.getenv("FL_JOB") \
-                   or os.getenv("APPLICATION_ID") \
-                   or "unknow"
+                       or os.getenv("APPLICATION_ID") \
+                       or "unknow"
         self.task = os.getenv("FL_TASK") \
-                    or "unknow"
+                        or "unknow"
         self.task_index = os.getenv("FL_TASK_INDEX") \
-                          or os.getenv("INDEX") \
-                          or "0"
+                              or os.getenv("INDEX") \
+                              or "0"
         self.task_index = int(self.task_index)
 
         self._stats_client = None

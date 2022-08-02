@@ -67,18 +67,19 @@ class _TriggerHook(tf.train.SessionRunHook):
 
     def _should_trigger(self, global_step):
         if self._last_triggered_time is None \
-            or self._last_triggered_step is None:
+                or self._last_triggered_step is None:
             return True
 
-        if self._trigger_secs is not None:
-            if time.time() >= self._last_triggered_time + self._trigger_secs:
-                return True
+        if (
+            self._trigger_secs is not None
+            and time.time() >= self._last_triggered_time + self._trigger_secs
+        ):
+            return True
 
-        if self._trigger_steps is not None:
-            if global_step >= self._last_triggered_step + self._trigger_steps:
-                return True
-
-        return False
+        return (
+            self._trigger_steps is not None
+            and global_step >= self._last_triggered_step + self._trigger_steps
+        )
 
     def _trigger(self, global_step):
         if self._trigger_fn:
@@ -150,7 +151,7 @@ class _FakeBridge():
         def func(x):
             raise RuntimeError("Unexcepted call send op")
 
-        out = tf.py_function(func=func, inp=[x], Tout=[], name='send_' + name)
+        out = tf.py_function(func=func, inp=[x], Tout=[], name=f'send_{name}')
         return out
     def receive_op(self, name, dtype):
         def func():
@@ -372,7 +373,7 @@ class _TrainerMaster(tm_grpc.TrainerMasterServiceServicer):
             export_path = os.path.join(
                 self._export_path, str(self._worker0_terminated_at))
             with tf.Graph().as_default() as g, \
-                g.device(self._cluster_server.device_setter):
+                    g.device(self._cluster_server.device_setter):
 
                 receiver = self._serving_input_receiver_fn()
                 spec, model = estimator._get_model_spec(
@@ -651,22 +652,21 @@ class FollowerTrainerMaster(_TrainerMaster):
         self._last_global_step = global_step
 
     def _request_data_block(self, request):
-        data_block = self._data_visitor.get_datablock_by_id(request.block_id)
-        if data_block:
+        if data_block := self._data_visitor.get_datablock_by_id(request.block_id):
             fl_logging.info("allocated worker_%d with block: %s",
                             request.worker_rank,
                             data_block.id)
-            response = tm_pb.DataBlockResponse(
-                status=common_pb.Status(
-                    code=common_pb.StatusCode.STATUS_SUCCESS),
+            return tm_pb.DataBlockResponse(
+                status=common_pb.Status(code=common_pb.StatusCode.STATUS_SUCCESS),
                 block_id=data_block.id,
                 data_path=data_block.data_path,
             )
+
         else:
             fl_logging.error("invalid data block id: %s", request.block_id)
-            response = tm_pb.DataBlockResponse(
+            return tm_pb.DataBlockResponse(
                 status=common_pb.Status(
                     code=common_pb.StatusCode.STATUS_INVALID_DATA_BLOCK,
-                    error_message="invalid data block")
+                    error_message="invalid data block",
                 )
-        return response
+            )

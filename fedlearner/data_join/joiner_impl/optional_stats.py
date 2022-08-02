@@ -69,7 +69,7 @@ class OptionalStats(object):
         for field in self._stat_fields:
             value = self._convert_to_str(getattr(item, field, '#None#'))
             item_stat[field] = value
-            self._stats[joined]['{}={}'.format(field, value)] += 1
+            self._stats[joined][f'{field}={value}'] += 1
         if random.random() < self._sample_rate:
             tags = copy.deepcopy(self._tags)
             tags.update(item_stat)
@@ -78,7 +78,7 @@ class OptionalStats(object):
                     item.event_time, True
                 ).isoformat(timespec='microseconds')
             tags['process_time'] = datetime.now(tz=pytz.utc) \
-                .isoformat(timespec='microseconds')
+                    .isoformat(timespec='microseconds')
             emit(name='', value=0, tags=tags, index_type='data_join')
 
     def emit_optional_stats(self):
@@ -87,11 +87,14 @@ class OptionalStats(object):
         field_and_value: a `field`_`value` pair, e.g., for field = `label`,
             field_and_value may be `label_1`, `label_0` and `label_#None#`
         """
-        # set union and deduplicate
-        field_and_values = list(set(chain.from_iterable(
-            iter(self._stats[v].keys()) for v in self._kind_map.values()
-        )))
-        field_and_values.sort()  # for better order in logging
+        field_and_values = sorted(
+            set(
+                chain.from_iterable(
+                    iter(self._stats[v].keys()) for v in self._kind_map.values()
+                )
+            )
+        )
+
         for field_and_value in field_and_values:
             joined_count = self._stats[1][field_and_value]
             fake_count = self._stats[0][field_and_value]
@@ -100,7 +103,7 @@ class OptionalStats(object):
             fake_total_count = total_count + fake_count
             join_rate = joined_count / max(total_count, 1) * 100
             fake_join_rate = (joined_count + fake_count) / \
-                             max(fake_total_count, 1) * 100
+                                 max(fake_total_count, 1) * 100
             logging.info(
                 'Cumulative stats of `%s`:\n '
                 'total: %d, joined: %d, unjoined: %d, join rate: %f, '

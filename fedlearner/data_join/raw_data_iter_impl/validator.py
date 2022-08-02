@@ -51,10 +51,12 @@ class Validator(object):
                 example = tf.train.Example()
                 example.ParseFromString(raw_data)
                 org_dict = \
-                    convert_tf_example_to_dict(example)
-                example_dict = {}
-                for key, val in org_dict.items():
-                    example_dict[key] = val[0] if len(val) == 1 else val
+                        convert_tf_example_to_dict(example)
+                example_dict = {
+                    key: val[0] if len(val) == 1 else val
+                    for key, val in org_dict.items()
+                }
+
                 if not self._check(example_dict):
                     return False
             except Exception as e:  # pylint: disable=broad-except
@@ -117,7 +119,11 @@ class TypeChecker(Checker):
                 except Exception:  # pylint: disable=broad-except
                     pass
 
-        if not passed:
-            return False, "wanted type {}, but got {}".format(
-                self._wanted_types, type(value))
-        return True, ""
+        return (
+            (True, "")
+            if passed
+            else (
+                False,
+                f"wanted type {self._wanted_types}, but got {type(value)}",
+            )
+        )

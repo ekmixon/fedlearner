@@ -93,42 +93,86 @@ def make_data(args):
 
     write_data(
         args.output_type,
-        'data/leader_train.%s'%args.output_type, x_train, y_train,
-        'leader', args.verify_example_ids)
-    write_data(
-        args.output_type,
-        'data/follower_train.%s'%args.output_type, x_train, y_train,
-        'follower', args.verify_example_ids)
-    write_data(
-        args.output_type,
-        'data/local_train.%s'%args.output_type, x_train, y_train,
-        'local', False)
+        f'data/leader_train.{args.output_type}',
+        x_train,
+        y_train,
+        'leader',
+        args.verify_example_ids,
+    )
 
     write_data(
         args.output_type,
-        'data/leader_test/part-0001.%s'%args.output_type, x_test, y_test,
-        'leader', args.verify_example_ids)
-    write_data(
-        args.output_type,
-        'data/follower_test/part-0001.%s'%args.output_type, x_test, y_test,
-        'follower', args.verify_example_ids)
-    write_data(
-        args.output_type,
-        'data/local_test/part-0001.%s'%args.output_type, x_test, y_test,
-        'local', False)
+        f'data/follower_train.{args.output_type}',
+        x_train,
+        y_train,
+        'follower',
+        args.verify_example_ids,
+    )
 
     write_data(
         args.output_type,
-        'data/leader_test/part-0002.%s'%args.output_type, x_test, y_test,
-        'leader', args.verify_example_ids)
+        f'data/local_train.{args.output_type}',
+        x_train,
+        y_train,
+        'local',
+        False,
+    )
+
+
     write_data(
         args.output_type,
-        'data/follower_test/part-0002.%s'%args.output_type, x_test, y_test,
-        'follower', args.verify_example_ids)
+        f'data/leader_test/part-0001.{args.output_type}',
+        x_test,
+        y_test,
+        'leader',
+        args.verify_example_ids,
+    )
+
     write_data(
         args.output_type,
-        'data/local_test/part-0002.%s'%args.output_type, x_test, y_test,
-        'local', False)
+        f'data/follower_test/part-0001.{args.output_type}',
+        x_test,
+        y_test,
+        'follower',
+        args.verify_example_ids,
+    )
+
+    write_data(
+        args.output_type,
+        f'data/local_test/part-0001.{args.output_type}',
+        x_test,
+        y_test,
+        'local',
+        False,
+    )
+
+
+    write_data(
+        args.output_type,
+        f'data/leader_test/part-0002.{args.output_type}',
+        x_test,
+        y_test,
+        'leader',
+        args.verify_example_ids,
+    )
+
+    write_data(
+        args.output_type,
+        f'data/follower_test/part-0002.{args.output_type}',
+        x_test,
+        y_test,
+        'follower',
+        args.verify_example_ids,
+    )
+
+    write_data(
+        args.output_type,
+        f'data/local_test/part-0002.{args.output_type}',
+        x_test,
+        y_test,
+        'local',
+        False,
+    )
 
 
 if __name__ == '__main__':

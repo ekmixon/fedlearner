@@ -46,8 +46,8 @@ class DataSourceProducer(unittest.TestCase):
         data_source = common_pb.DataSource()
         data_source.data_source_meta.name = dsname
         data_source.data_source_meta.partition_num = 1
-        data_source.output_base_dir = "%s_ds_output" % dsname
-        self.raw_data_dir = "%s_raw_data" % dsname
+        data_source.output_base_dir = f"{dsname}_ds_output"
+        self.raw_data_dir = f"{dsname}_raw_data"
         self.data_source = data_source
         self.raw_data_options = dj_pb.RawDataOptions(
                 raw_data_iter='TF_RECORD',

@@ -54,12 +54,11 @@ class DataBlockLoader(object):
         if self._role == 'leader':
             while True:
                 block = self._trainer_master.request_data_block(None)
-                if block is not None:
-                    if not self._bridge.load_data_block(
-                            self._count, block.block_id):
-                        continue
-                else:
+                if block is None:
                     self._bridge.load_data_block(self._count, '')
+                elif not self._bridge.load_data_block(
+                            self._count, block.block_id):
+                    continue
                 break
             self._count += 1
         else:

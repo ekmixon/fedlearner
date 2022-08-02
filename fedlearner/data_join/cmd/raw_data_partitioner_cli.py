@@ -80,8 +80,7 @@ if __name__ == "__main__":
     assert 0 <= args.partitioner_rank_id < args.total_partitioner_num
     all_fpaths = []
     if args.file_paths is not None:
-        for fp in args.file_paths:
-            all_fpaths.append(fp)
+        all_fpaths.extend(iter(args.file_paths))
     if args.input_dir is not None:
         all_fpaths += [os.path.join(args.input_dir, f)
                        for f in gfile.ListDirectory(args.input_dir)]
@@ -89,10 +88,9 @@ if __name__ == "__main__":
             len(args.input_file_wildcard) > 0:
         all_fpaths = [fpath for fpath in all_fpaths
                       if fnmatch(fpath, args.input_file_wildcard)]
-    if len(all_fpaths) == 0:
+    if not all_fpaths:
         raise RuntimeError("no input files for partitioner")
-    all_fpaths = list(set(all_fpaths))
-    all_fpaths.sort()
+    all_fpaths = sorted(set(all_fpaths))
     partitioner_num = args.total_partitioner_num
     if partitioner_num > 1:
         origin_file_num = len(all_fpaths)

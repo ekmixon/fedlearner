@@ -48,8 +48,7 @@ class ExampleJoinLeader(TransmitLeader):
 
         def make_producer(self):
             with self.example_joiner.make_example_joiner() as joiner:
-                for meta in joiner:
-                    yield meta
+                yield from joiner
 
         def __getattr__(self, attr):
             return getattr(self.example_joiner, attr)

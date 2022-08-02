@@ -23,21 +23,19 @@ from fedlearner.channel import Channel
 
 class _Server(greeter_pb2_grpc.GreeterServicer):
     def HelloUnaryUnary(self, request, context):
-        return greeter_pb2.Response(
-            message="[HelloUnaryUnary]: Hello " + request.name)
+        return greeter_pb2.Response(message=f"[HelloUnaryUnary]: Hello {request.name}")
 
     def HelloUnaryStream(self, request, context):
         def response_iterator():
             for i in range (5):
-                yield greeter_pb2.Response(
-                    message="[HelloUnaryStream]: Hello " + request.name)
+                yield greeter_pb2.Response(message=f"[HelloUnaryStream]: Hello {request.name}")
 
         return response_iterator()
 
     def HelloStreamUnary(self, request_iterator, context):
         response = "[HelloStreamUnary]: Hello"
         for request in request_iterator:
-            response += " " + request.name
+            response += f" {request.name}"
 
         return greeter_pb2.Response(message=response)
 
@@ -45,7 +43,9 @@ class _Server(greeter_pb2_grpc.GreeterServicer):
         def response_iterator():
             for request in request_iterator:
                 yield greeter_pb2.Response(
-                    message="[HelloStreamStream]: Hello " + request.name)
+                    message=f"[HelloStreamStream]: Hello {request.name}"
+                )
+
 
         return response_iterator()
 
@@ -108,7 +108,6 @@ class TestChannel(unittest.TestCase):
 
         thread1.join()
         thread2.join()
-        pass
 
     def tearDown(self):
         self._channel1.close(False)

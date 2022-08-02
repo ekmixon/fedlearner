@@ -100,9 +100,11 @@ class ServerInterceptor(grpc.ServerInterceptor):
         return peer_identifier
 
     def _check_peer_identifier(self, peer_identifier):
-        if not self._peer_identifier:
-            return False
-        return self._peer_identifier == peer_identifier
+        return (
+            self._peer_identifier == peer_identifier
+            if self._peer_identifier
+            else False
+        )
 
     def intercept_service(self, continuation, handler_call_details):
         method_handler = continuation(handler_call_details)
@@ -112,10 +114,11 @@ class ServerInterceptor(grpc.ServerInterceptor):
         peer_identifier = self._extract_metadata(
             handler_call_details.invocation_metadata)
 
-        if not self._check_peer_identifier(peer_identifier):
-            return _ResponsedMethodHandler(method_handler,
-                        channel_pb2.SendResponse(
-                            code=channel_pb2.Code.UNIDENTIFIED
-                            ))
-
-        return _MethodHandler(method_handler)
+        return (
+            _MethodHandler(method_handler)
+            if self._check_peer_identifier(peer_identifier)
+            else _ResponsedMethodHandler(
+                method_handler,
+                channel_pb2.SendResponse(code=channel_pb2.Code.UNIDENTIFIED),
+            )
+        )

@@ -63,7 +63,7 @@ class DataBlockBuilder(object):
         self._data_block_manager = data_block_manager
 
     def append_item(self, item, leader_index, follower_index, event_time=None,\
-                    allow_dup=False, joined=-1):
+                        allow_dup=False, joined=-1):
         example_id = item.example_id
         if event_time is None:
             event_time = item.event_time
@@ -83,15 +83,15 @@ class DataBlockBuilder(object):
         else:
             if not allow_dup:
                 assert self._data_block_meta.leader_start_index < leader_index,\
-                        "leader start index should be incremental"
+                            "leader start index should be incremental"
                 assert self._data_block_meta.leader_end_index < leader_index, \
-                        "leader end index should be incremental"
+                            "leader end index should be incremental"
             else:
                 assert self._data_block_meta.leader_start_index <= \
-                        leader_index,\
-                        "leader start index should be incremental by GE"
+                            leader_index,\
+                            "leader start index should be incremental by GE"
                 assert self._data_block_meta.leader_end_index <= leader_index, \
-                    "leader end index should be incremental by LE"
+                        "leader end index should be incremental by LE"
 
             self._data_block_meta.leader_end_index = leader_index
             if event_time < self._data_block_meta.start_time:
@@ -183,11 +183,11 @@ class DataBlockBuilder(object):
         leader_join_rate = 0.0
         if meta.joiner_stats_info.leader_stats_index > 0:
             leader_join_rate = meta.joiner_stats_info.actual_cum_join_num / \
-                    meta.joiner_stats_info.leader_stats_index
+                        meta.joiner_stats_info.leader_stats_index
         follower_join_rate = 0.0
         if meta.joiner_stats_info.follower_stats_index > 0:
             follower_join_rate = meta.joiner_stats_info.actual_cum_join_num / \
-                meta.joiner_stats_info.follower_stats_index
+                    meta.joiner_stats_info.follower_stats_index
         metrics.emit_store(name='leader_join_rate_percent',
                            value=int(leader_join_rate*100),
                            tags=nmetric_tags)
@@ -195,9 +195,9 @@ class DataBlockBuilder(object):
                            value=int(follower_join_rate*100),
                            tags=nmetric_tags)
         logging.info("create new data block id: %s, data block index: %d," \
-                     "stats:\n stats_cum_join_num: %d, actual_cum_join_num: "\
-                     "%d, leader_stats_index: %d, follower_stats_index: %d, "\
-                     "leader_join_rate: %f, follower_join_rate: %f",
+                         "stats:\n stats_cum_join_num: %d, actual_cum_join_num: "\
+                         "%d, leader_stats_index: %d, follower_stats_index: %d, "\
+                         "leader_join_rate: %f, follower_join_rate: %f",
                      meta.block_id, meta.data_block_index,
                      meta.joiner_stats_info.stats_cum_join_num,
                      meta.joiner_stats_info.actual_cum_join_num,
@@ -252,7 +252,7 @@ class DataBlockManager(object):
     def get_data_block_meta_by_index(self, index):
         with self._lock:
             if index < 0:
-                raise IndexError("{} index out of range".format(index))
+                raise IndexError(f"{index} index out of range")
             self._sync_dumped_index()
             return self._sync_data_block_meta(index)
 
@@ -263,14 +263,10 @@ class DataBlockManager(object):
 
     def commit_data_block_meta(self, tmp_meta_fpath, data_block_meta):
         if not gfile.Exists(tmp_meta_fpath):
-            raise RuntimeError("the tmp file is not existed {}"\
-                               .format(tmp_meta_fpath))
+            raise RuntimeError(f"the tmp file is not existed {tmp_meta_fpath}")
         with self._lock:
             if self._dumping_index is not None:
-                raise RuntimeError(
-                        "data block with index {} is " \
-                        "dumping".format(self._dumping_index)
-                    )
+                raise RuntimeError(f"data block with index {self._dumping_index} is dumping")
             data_block_index = data_block_meta.data_block_index
             if data_block_index != self._dumped_index + 1:
                 raise IndexError("the data block index shoud be consecutive")
@@ -285,7 +281,7 @@ class DataBlockManager(object):
     def _sync_dumped_index(self):
         if self._dumped_index is None:
             assert self._dumping_index is None, \
-                "no index is dumping when no dumped index"
+                    "no index is dumping when no dumped index"
             left_index = 0
             right_index = 1 << 63
             while left_index <= right_index:
@@ -297,15 +293,14 @@ class DataBlockManager(object):
                     right_index = index - 1
             self._dumped_index = right_index
         elif self._dumping_index is not None:
-            assert self._dumping_index == self._dumped_index + 1, \
-                "the dumping index shoud be next of dumped index "\
-                "{} != {} + 1".format(self._dumping_index, self._dumped_index)
+            assert (
+                self._dumping_index == self._dumped_index + 1
+            ), f"the dumping index shoud be next of dumped index {self._dumping_index} != {self._dumped_index} + 1"
+
             fpath = self._get_data_block_meta_path(self._dumping_index)
-            if not gfile.Exists(fpath):
-                self._dumping_index = None
-            else:
+            if gfile.Exists(fpath):
                 self._dumped_index = self._dumping_index
-                self._dumping_index = None
+            self._dumping_index = None
 
     def _make_directory_if_nessary(self):
         data_block_dir = self._data_block_dir()

@@ -32,7 +32,7 @@ def input_fn(bridge, trainer_master):
         bridge, trainer_master).make_dataset()
 
     def parse_fn(example):
-        feature_map = dict()
+        feature_map = {}
         feature_map["example_id"] = tf.FixedLenFeature([], tf.string)
         feature_map["x"] = tf.FixedLenFeature([28 * 28 // 2], tf.float32)
         features = tf.parse_example(example, features=feature_map)

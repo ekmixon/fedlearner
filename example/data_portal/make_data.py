@@ -30,13 +30,18 @@ class GenerateTestInputData(object):
     def _generate_one_partition(self, partition_id, example_id, num_examples):
         fpath = self._get_input_fpath(partition_id)
         with tf.io.TFRecordWriter(fpath) as writer:
-            for i in range(num_examples):
+            for _ in range(num_examples):
                 example_id += random.randint(1, 5)
                 # real_id = example_id.encode("utf-8")
                 event_time = 150000000 + random.randint(10000000, 20000000)
-                feat = {}
-                feat['example_id'] = tf.train.Feature(bytes_list=
-                    tf.train.BytesList(value=[str(example_id).encode('utf-8')]))
+                feat = {
+                    'example_id': tf.train.Feature(
+                        bytes_list=tf.train.BytesList(
+                            value=[str(example_id).encode('utf-8')]
+                        )
+                    )
+                }
+
                 feat['raw_id'] = tf.train.Feature(bytes_list=
                     tf.train.BytesList(value=[str(example_id).encode('utf-8')]))
                 feat['event_time'] = tf.train.Feature(int64_list=
@@ -56,7 +61,7 @@ class GenerateTestInputData(object):
         self._partition_item_num = 1 << 16
         self._clean_up()
         gfile.MakeDirs(self._input_dir)
-        success_flag_fpath = "{}/_SUCCESS".format(self._input_dir)
+        success_flag_fpath = f"{self._input_dir}/_SUCCESS"
         example_id = 1000001
         for partition_id in range(self._input_partition_num):
             example_id = self._generate_one_partition(partition_id, example_id,

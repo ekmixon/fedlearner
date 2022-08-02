@@ -54,7 +54,7 @@ if args.gpu_option:
         try:
             tf.config.experimental.set_visible_devices(gpus[args.gpu_id], 'GPU')
             tf.config.experimental.set_memory_growth(gpus[args.gpu_id], True)
-            print("Using GPU: {}".format(args.gpu_id))
+            print(f"Using GPU: {args.gpu_id}")
         except RuntimeError as e:
             # Visible devices must be set at program startup
             print(e)
@@ -63,8 +63,9 @@ else:
     os.environ['KMP_DUPLICATE_LIB_OK'] = 'True'
 
 batch_size = args.batch_size
-print("batch_size: {}, reconstruction_loss_weight: {}, grl: {}".format(
-    batch_size, args.reconstruction_loss_weight, args.grl))
+print(
+    f"batch_size: {batch_size}, reconstruction_loss_weight: {args.reconstruction_loss_weight}, grl: {args.grl}"
+)
 
 
 def make_discriminator_model_passive():
@@ -77,9 +78,9 @@ def make_discriminator_model_passive():
 
 
 def generate_gaussian_noise(input_emb, stddev=1):
-    noise = tf.random.normal(shape=tf.shape(input_emb),
-                             mean=0, stddev=stddev, dtype=tf.float32)
-    return noise
+    return tf.random.normal(
+        shape=tf.shape(input_emb), mean=0, stddev=stddev, dtype=tf.float32
+    )
 
 
 def make_reconstruction_model():
@@ -118,9 +119,11 @@ def cross_entropy_loss(prediction_logits, labels):
     prediction_logits = tf.cast(tf.reshape(prediction_logits, shape=[-1, 10]),
                                 dtype=tf.float32)
     labels = tf.cast(tf.reshape(labels, shape=[-1, 1]), dtype=tf.float32)
-    cro_ent = tf.reduce_sum(tf.keras.losses.sparse_categorical_crossentropy(
-        labels, prediction_logits, from_logits=True))
-    return cro_ent
+    return tf.reduce_sum(
+        tf.keras.losses.sparse_categorical_crossentropy(
+            labels, prediction_logits, from_logits=True
+        )
+    )
 
 
 def discriminator_loss(prediction_logits, labels, reconstructed_emb,
@@ -234,10 +237,9 @@ def pairwise_dist(A, B):
     na = tf.reshape(na, [-1, 1])
     nb = tf.reshape(nb, [1, -1])
 
-    # return pairwise euclidead difference matrix
-    D = tf.sqrt(tf.maximum(na - 2 * tf.matmul(A, B, False, True) + nb + 1e-20,
-                           0.0))
-    return D
+    return tf.sqrt(
+        tf.maximum(na - 2 * tf.matmul(A, B, False, True) + nb + 1e-20, 0.0)
+    )
 
 def tf_distance_cov_cor(input1, input2, debug=False):
     start = time.time()
@@ -265,11 +267,10 @@ def tf_distance_cov_cor(input1, input2, debug=False):
     dCorXY = dCovXY / tf.sqrt(dVarXX * dVarYY)
     end = time.time()
     if debug:
-        print(("tf distance cov: {} and cor: {}, dVarXX: {}, "
-               "dVarYY:{} uses: {}").format(
-            dCovXY, dCorXY,
-            dVarXX, dVarYY,
-            end - start))
+        print(
+            f"tf distance cov: {dCovXY} and cor: {dCorXY}, dVarXX: {dVarXX}, dVarYY:{dVarYY} uses: {end - start}"
+        )
+
     return dCovXY, dCorXY
 
 # @tf.function
@@ -283,7 +284,6 @@ def train_step(X, Y, discriminator_passive, reconstruction,
                update_discriminator=False,
                update_reconstruction=True):
     with tf.GradientTape() as reco_tape, tf.GradientTape() as disc_tape:
-        dis_cov_cors = []
         X = tf.reshape(X, shape=(-1, 784))
         emb = discriminator_passive(X, training=True)
 
@@ -321,8 +321,7 @@ def train_step(X, Y, discriminator_passive, reconstruction,
         rec_noise_loss_w = args.reconstruction_stablizer_noise_weight \
             * rec_noise_loss
 
-        dis_cov_cors.append((dist_cov_X_Protected_emb,
-                             dist_cor_X_Protected_emb))
+        dis_cov_cors = [(dist_cov_X_Protected_emb, dist_cor_X_Protected_emb)]
         dist_cov_X_Rec_emb, dist_cor_X_Rec_emb = tf_distance_cov_cor(
             X, reconstructed_emb)
         dis_cov_cors.append((dist_cov_X_Rec_emb, dist_cor_X_Rec_emb))
@@ -372,18 +371,23 @@ def train(train_dataset, val_dataset, test_dataset, epochs):
                                                         beta_1=args.rec_beta1)
 
     if args.clip_norm_adam > 0.0:
-        if args.clip_value_adam > 0.0:
-            discriminator_optimizer = tf.keras.optimizers.Adam(args.dis_lr,
-                clipnorm=args.clip_norm_adam, clipvalue=args.clip_value_adam)
-        else:
-            discriminator_optimizer = tf.keras.optimizers.Adam(
-                args.dis_lr, clipnorm=args.clip_norm_adam)
+        discriminator_optimizer = (
+            tf.keras.optimizers.Adam(
+                args.dis_lr,
+                clipnorm=args.clip_norm_adam,
+                clipvalue=args.clip_value_adam,
+            )
+            if args.clip_value_adam > 0.0
+            else tf.keras.optimizers.Adam(
+                args.dis_lr, clipnorm=args.clip_norm_adam
+            )
+        )
+
+    elif args.clip_value_adam > 0.0:
+        discriminator_optimizer = tf.keras.optimizers.Adam(
+            args.dis_lr, clipvalue=args.clip_value_adam)
     else:
-        if args.clip_value_adam > 0.0:
-            discriminator_optimizer = tf.keras.optimizers.Adam(
-                args.dis_lr, clipvalue=args.clip_value_adam)
-        else:
-            discriminator_optimizer = tf.keras.optimizers.Adam(args.dis_lr)
+        discriminator_optimizer = tf.keras.optimizers.Adam(args.dis_lr)
 
     reconstruction = make_reconstruction_model()
     independent_attacker = make_reconstruction_model()
@@ -401,6 +405,8 @@ def train(train_dataset, val_dataset, test_dataset, epochs):
 
     alt_update_dis, alt_update_rec = True, True
 
+    train_reco_loss_last_batch_sum, train_dis_loss_last_batch_sum, \
+        train_ent_loss_last_batch_sum, last_n = 0.0, 0.0, 0.0, 0
     # global _global_step
 
     for epoch in range(epochs):
@@ -408,8 +414,6 @@ def train(train_dataset, val_dataset, test_dataset, epochs):
         train_reco_noise_loss_sum, train_reco_loss_sum, train_dis_loss_sum, \
             train_ent_loss_sum, independent_attacker_rec_loss_sum, n = \
             0.0, 0.0, 0.0, 0.0, 0.0, 0
-        train_reco_loss_last_batch_sum, train_dis_loss_last_batch_sum, \
-            train_ent_loss_last_batch_sum, last_n = 0.0, 0.0, 0.0, 0
         dist_cov_X_Protected_emb_sum, dist_cor_X_Protected_emb_sum = 0.0, 0.0
         dist_cov_X_Rec_emb_sum, dist_cor_X_Rec_emb_sum = 0.0, 0.0
 
@@ -481,24 +485,10 @@ def train(train_dataset, val_dataset, test_dataset, epochs):
                               dist_cor_X_Rec_emb_sum / num_batchs,
                               step=epoch)
 
-        print(("epoch: {}, train_acc: {}, train_reconstruction_loss_mean: {},"
-               " train_indepedent_attack_rec_loss_mean: {},"
-               "train_discriminator_loss_mean: {}, "
-               "train_cross_entropy_loss_mean: {}, "
-               "reconstruction_noise_loss_mean: {}, "
-               "X_and_Protected_emb_cov: {}, "
-               "X_and_Protected_emb_cor: {}, "
-               "X_and_Rec_emb_cov: {}, X_and_Rec_emb_cor: {}").format(
-            epoch, train_acc.result(),
-            train_reco_loss_sum / n,
-            independent_attacker_rec_loss_sum / n,
-            train_dis_loss_sum / n,
-            train_ent_loss_sum / n,
-            train_reco_noise_loss_sum / n,
-            dist_cov_X_Protected_emb_sum / num_batchs,
-            dist_cor_X_Protected_emb_sum / num_batchs,
-            dist_cov_X_Rec_emb_sum / num_batchs,
-            dist_cor_X_Rec_emb_sum / num_batchs))
+        print(
+            f"epoch: {epoch}, train_acc: {train_acc.result()}, train_reconstruction_loss_mean: {train_reco_loss_sum / n}, train_indepedent_attack_rec_loss_mean: {independent_attacker_rec_loss_sum / n},train_discriminator_loss_mean: {train_dis_loss_sum / n}, train_cross_entropy_loss_mean: {train_ent_loss_sum / n}, reconstruction_noise_loss_mean: {train_reco_noise_loss_sum / n}, X_and_Protected_emb_cov: {dist_cov_X_Protected_emb_sum / num_batchs}, X_and_Protected_emb_cor: {dist_cor_X_Protected_emb_sum / num_batchs}, X_and_Rec_emb_cov: {dist_cov_X_Rec_emb_sum / num_batchs}, X_and_Rec_emb_cor: {dist_cor_X_Rec_emb_sum / num_batchs}"
+        )
+
         val_rec_loss_mean, val_ent_loss_mean, _ = test(
             test_dataset,
             discriminator_passive,
@@ -526,8 +516,9 @@ def train(train_dataset, val_dataset, test_dataset, epochs):
             tf.summary.scalar('norm_kernel/dis_norm', dis_norm, step=epoch)
             tf.summary.scalar('norm_kernel/dis_rec_norm', dis_rec_norm,
                               step=epoch)
-        print('Time for epoch {} is {} sec, program config: {}'.format(
-            epoch + 1, time.time() - start, stamp))
+        print(
+            f'Time for epoch {epoch + 1} is {time.time() - start} sec, program config: {stamp}'
+        )
 
 # @tf.function
 
@@ -589,46 +580,73 @@ def test(dataset, discriminator_passive, reconstruction,
         num_batchs += 1
 
     with writer.as_default():
-        if is_validation:
-            prefix = "val/"
-        else:
-            prefix = "test/"
-        tf.summary.scalar(prefix + 'acc', test_acc.result(), step=epoch)
-        tf.summary.scalar(prefix + 'reconstruction_loss_mean',
-                          test_reco_loss_sum / n, step=epoch)
-        tf.summary.scalar(prefix + 'reconstruction_noise_loss_mean',
-                          independent_attacker_rec_loss_sum / n, step=epoch)
-        tf.summary.scalar(prefix + 'discriminator_loss_mean',
-                          test_dis_loss_sum / n, step=epoch)
-        tf.summary.scalar(prefix + 'cross_entropy_loss_mean',
-                          test_ent_loss_sum / n, step=epoch)
-        tf.summary.scalar(prefix + 'independent_attacker_rec_loss_mean',
-                          test_ent_loss_sum / n, step=epoch)
-        tf.summary.scalar(prefix + '/dcor/dist_cov_X_Protected_emb',
-                          dist_cov_X_Protected_emb_sum / num_batchs, step=epoch)
-        tf.summary.scalar(prefix + '/dcor/dist_cor_X_Protected_emb',
-                          dist_cor_X_Protected_emb_sum / num_batchs, step=epoch)
-        tf.summary.scalar(prefix + '/dcor/dist_cov_X_Rec_emb',
-                          dist_cov_X_Rec_emb_sum / num_batchs, step=epoch)
-        tf.summary.scalar(prefix + '/dcor/dist_cor_X_Rec_emb',
-                          dist_cor_X_Rec_emb_sum / num_batchs, step=epoch)
+        prefix = "val/" if is_validation else "test/"
+        tf.summary.scalar(f'{prefix}acc', test_acc.result(), step=epoch)
+        tf.summary.scalar(
+            f'{prefix}reconstruction_loss_mean',
+            test_reco_loss_sum / n,
+            step=epoch,
+        )
+
+        tf.summary.scalar(
+            f'{prefix}reconstruction_noise_loss_mean',
+            independent_attacker_rec_loss_sum / n,
+            step=epoch,
+        )
+
+        tf.summary.scalar(
+            f'{prefix}discriminator_loss_mean',
+            test_dis_loss_sum / n,
+            step=epoch,
+        )
+
+        tf.summary.scalar(
+            f'{prefix}cross_entropy_loss_mean',
+            test_ent_loss_sum / n,
+            step=epoch,
+        )
+
+        tf.summary.scalar(
+            f'{prefix}independent_attacker_rec_loss_mean',
+            test_ent_loss_sum / n,
+            step=epoch,
+        )
+
+        tf.summary.scalar(
+            f'{prefix}/dcor/dist_cov_X_Protected_emb',
+            dist_cov_X_Protected_emb_sum / num_batchs,
+            step=epoch,
+        )
+
+        tf.summary.scalar(
+            f'{prefix}/dcor/dist_cor_X_Protected_emb',
+            dist_cor_X_Protected_emb_sum / num_batchs,
+            step=epoch,
+        )
+
+        tf.summary.scalar(
+            f'{prefix}/dcor/dist_cov_X_Rec_emb',
+            dist_cov_X_Rec_emb_sum / num_batchs,
+            step=epoch,
+        )
+
+        tf.summary.scalar(
+            f'{prefix}/dcor/dist_cor_X_Rec_emb',
+            dist_cor_X_Rec_emb_sum / num_batchs,
+            step=epoch,
+        )
+
 
     if is_validation:
-        print(("epoch: {}, val_acc: {}, val_reconstruction_loss_mean: {}, "
-               "val_reconstruction_noise_loss_mean: {}, "
-               "val_discriminator_loss_mean: {}, "
-               "val_cross_entropy_loss_mean: {}").format(
-            epoch, test_acc.result(), test_reco_loss_sum / n,
-            test_reco_noise_loss_sum / n, test_dis_loss_sum / n,
-            test_ent_loss_sum / n))
+        print(
+            f"epoch: {epoch}, val_acc: {test_acc.result()}, val_reconstruction_loss_mean: {test_reco_loss_sum / n}, val_reconstruction_noise_loss_mean: {test_reco_noise_loss_sum / n}, val_discriminator_loss_mean: {test_dis_loss_sum / n}, val_cross_entropy_loss_mean: {test_ent_loss_sum / n}"
+        )
+
     else:
-        print(("epoch: {}, test_acc: {}, test_reconstruction_loss_mean: {},"
-               "test_reconstruction_noise_loss_mean: {},"
-               "test_discriminator_loss_mean: {}, "
-               "test_cross_entropy_loss_mean: {}").format(
-            epoch, test_acc.result(), test_reco_loss_sum / n,
-            test_reco_noise_loss_sum / n, test_dis_loss_sum / n,
-            test_ent_loss_sum / n))
+        print(
+            f"epoch: {epoch}, test_acc: {test_acc.result()}, test_reconstruction_loss_mean: {test_reco_loss_sum / n},test_reconstruction_noise_loss_mean: {test_reco_noise_loss_sum / n},test_discriminator_loss_mean: {test_dis_loss_sum / n}, test_cross_entropy_loss_mean: {test_ent_loss_sum / n}"
+        )
+
     return test_reco_loss_sum / n, test_ent_loss_sum / n, test_dis_loss_sum / n
 
 

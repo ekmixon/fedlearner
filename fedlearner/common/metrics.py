@@ -83,9 +83,7 @@ class ElasticSearchHandler(Handler):
             self._es = es6.Elasticsearch([ip], port=port)
             self._helpers = helpers6
             for index_type, index_name in INDEX_NAME.items():
-                if not self._es.indices.exists_template(
-                    '{}-template'.format(index_name)
-                ):
+                if not self._es.indices.exists_template(f'{index_name}-template'):
                     self._create_template_and_index(index_type)
         # suppress ES logger
         logging.getLogger('elasticsearch').setLevel(logging.CRITICAL)
@@ -127,22 +125,15 @@ class ElasticSearchHandler(Handler):
 
     @staticmethod
     def _produce_document(name, value, tags, index_type):
-        application_id = os.environ.get('APPLICATION_ID', '')
-        if application_id:
+        if application_id := os.environ.get('APPLICATION_ID', ''):
             tags['application_id'] = str(application_id)
         if index_type == 'metrics':
             tags['process_time'] = datetime.datetime.now(tz=pytz.utc) \
-                .isoformat(timespec='microseconds')
-            document = {
-                "name": name,
-                "value": value,
-                "tags": tags
-            }
+                    .isoformat(timespec='microseconds')
+            return {"name": name, "value": value, "tags": tags}
+
         else:
-            document = {
-                "tags": tags
-            }
-        return document
+            return {"tags": tags}
 
     def _create_template_and_index(self, index_type):
         """
@@ -154,9 +145,10 @@ class ElasticSearchHandler(Handler):
         """
         assert index_type in INDEX_TYPE
         self._es.indices.put_template(
-            name='{}-template'.format(INDEX_NAME[index_type]),
-            body=get_es_template(index_type, self._version)
+            name=f'{INDEX_NAME[index_type]}-template',
+            body=get_es_template(index_type, self._version),
         )
+
         try:
             self._es.indices.create(index=INDEX_NAME[index_type])
             return

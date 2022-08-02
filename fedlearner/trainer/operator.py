@@ -38,12 +38,12 @@ if os.path.exists(path):
 
 
 if lagrange_lite_ops is custom_fedlearner_operators_failed_to_load:
-    print("Failed to load fedlearner operators from %s"%path)
+    print(f"Failed to load fedlearner operators from {path}")
 
 
 def _multidevice_preprocess_fids(fids, config, num_shards):
     name = config['name']
-    with tf.name_scope("lagrange_multidevice_preprocess_fid/%s"%name):
+    with tf.name_scope(f"lagrange_multidevice_preprocess_fid/{name}"):
         slot_weight_index = tf.constant(config['slot_weight_index'],
                                        dtype=tf.int64)
         slot_hash_size = tf.constant(config['slot_hash_size'], dtype=tf.int64)
@@ -64,15 +64,19 @@ def _multidevice_preprocess_fids(fids, config, num_shards):
     features = {}
     for i in range(num_shards):
         fmt = '%s_%d_'%(name, i)
-        features.update({
-            fmt+'batch_size': fids.dense_shape[0],
-            fmt+'instance_ids': ret[0][i],
-            fmt+'fids': ret[1][i],
-            fmt+'num_unique_fids_per_partition': ret[2][i],
-            fmt+'fid_to_unique_index': ret[3][i],
-            fmt+'unique_fid_hash':
-                tuple(ret[4][i*config['num_groups']:(i+1)*config['num_groups']])
-        })
+        features |= {
+            f'{fmt}batch_size': fids.dense_shape[0],
+            f'{fmt}instance_ids': ret[0][i],
+            f'{fmt}fids': ret[1][i],
+            f'{fmt}num_unique_fids_per_partition': ret[2][i],
+            f'{fmt}fid_to_unique_index': ret[3][i],
+            f'{fmt}unique_fid_hash': tuple(
+                ret[4][
+                    i * config['num_groups'] : (i + 1) * config['num_groups']
+                ]
+            ),
+        }
+
     return features
 
 

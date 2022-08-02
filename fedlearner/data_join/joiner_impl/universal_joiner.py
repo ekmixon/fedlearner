@@ -46,9 +46,7 @@ class _IndexedPair(object):
         self.fi = fi
 
     def __lt__(self, other):
-        if self.li == other.li:
-            return self.fi < other.fi
-        return self.li < other.li
+        return self.fi < other.fi if self.li == other.li else self.li < other.li
 
     def __hash__(self):
         fi = self.fi % _RING_SIZE
@@ -64,7 +62,7 @@ class PrioritySet(object):
         self.set = set()
 
     def put(self, d):
-        if not d in self.set:
+        if d not in self.set:
             heapq.heappush(self.heap, d)
             self.set.add(d)
 
@@ -98,12 +96,18 @@ def make_index_by_attr(keys, item, key_idx=None):
         key_arr = key
         if isinstance(key, str):
             key_arr = [key]
-        if all([has_key(item, att) for att in key_arr]):
+        if all(has_key(item, att) for att in key_arr):
             if key_idx is not None:
                 key_idx.append(idx)
-            key_str_arr.append("_".join(
-                ["%s:%s"%(name, common.convert_to_str(getattr(item, name))) \
-                 for name in key_arr]))
+            key_str_arr.append(
+                "_".join(
+                    [
+                        f"{name}:{common.convert_to_str(getattr(item, name))}"
+                        for name in key_arr
+                    ]
+                )
+            )
+
     return key_str_arr
 
 
@@ -221,8 +225,10 @@ class _SlidingWindow(object):
         self._key_map_fn = mapper
 
     def key_map_fn(self, elem):
-        assert isinstance(elem, _SlidingWindow.Element), \
-                "elem instance %s is not Element"%elem
+        assert isinstance(
+            elem, _SlidingWindow.Element
+        ), f"elem instance {elem} is not Element"
+
         if elem.is_mapped:
             return True
         try:
@@ -296,26 +302,24 @@ class _SlidingWindow(object):
         defragment the ring buffer, and copy it to new_buf
         """
         if self._end == 0:
-            new_buf[0:self._size] = \
-                    self._ring_buffer[self._start:self._alloc_size]
+            new_buf[:self._size] = self._ring_buffer[self._start:self._alloc_size]
         elif self._start < self._end:
-            new_buf[0:self._size] = \
-                    self._ring_buffer[self._start:self._end]
+            new_buf[:self._size] = self._ring_buffer[self._start:self._end]
         else:
             part_1 = self._alloc_size - self._start
-            new_buf[0:part_1] = self._ring_buffer[self._start:self._alloc_size]
+            new_buf[:part_1] = self._ring_buffer[self._start:self._alloc_size]
             part_2 = self._end
             if part_2 >= 0:
-                new_buf[part_1:part_1+part_2] = self._ring_buffer[0:part_2]
+                new_buf[part_1:part_1+part_2] = self._ring_buffer[:part_2]
 
     def extend(self):
         logging.info("%s extend begin, begin=%d, end=%d, size=%d, "
                      "alloc_size=%d, len(ring_buffer)=%d, extend_cnt=%d",     \
-                     self.__class__.__name__, self._start, self._end,         \
-                     self._size, self._alloc_size, len(self._ring_buffer),    \
-                     self._debug_extend_cnt)
+                         self.__class__.__name__, self._start, self._end,         \
+                         self._size, self._alloc_size, len(self._ring_buffer),    \
+                         self._debug_extend_cnt)
         assert self._alloc_size < self._max_window_size,                      \
-                "Can't extend ring buffer due to max_window_size limit"
+                    "Can't extend ring buffer due to max_window_size limit"
         new_alloc_size = min(self._alloc_size * 2, self._max_window_size)
         new_buf = list(range(new_alloc_size))
         self._defragment(new_buf)
@@ -323,23 +327,23 @@ class _SlidingWindow(object):
         self._end = self._size
         self._alloc_size = new_alloc_size
         assert self._end <= self._alloc_size, \
-                'The end index should be smaller than alloc size'
+                    'The end index should be smaller than alloc size'
         self._ring_buffer = new_buf
         assert self._alloc_size == len(self._ring_buffer), \
-                'Window failed to extend since alloc size not match'
+                    'Window failed to extend since alloc size not match'
         self._debug_extend_cnt += 1
         logging.info("%s extend end, begin=%d, end=%d, size=%d, "
                      "alloc_size=%d, len(ring_buffer)=%d, extend_cnt=%d",     \
-                     self.__class__.__name__, self._start, self._end,         \
-                     self._size, self._alloc_size, len(self._ring_buffer),    \
-                     self._debug_extend_cnt)
+                         self.__class__.__name__, self._start, self._end,         \
+                         self._size, self._alloc_size, len(self._ring_buffer),    \
+                         self._debug_extend_cnt)
         gc.collect()
 
     def reset(self, new_buffer, state_stale):
         self._start = 0
         self._end = len(new_buffer)
         self._size = len(new_buffer)
-        self._ring_buffer[0:self._size-1] = new_buffer[0:self._size-1]
+        self._ring_buffer[:self._size-1] = new_buffer[:self._size-1]
 
     def _index(self, index):
         return (self._start + index) % self._alloc_size
@@ -374,7 +378,7 @@ class UniversalJoiner(ExampleJoiner):
         self._max_window_size = example_joiner_options.max_matching_window
 
         self._max_watermark_delay = \
-                example_joiner_options.max_conversion_delay
+                    example_joiner_options.max_conversion_delay
 
         self._key_mapper = create_key_mapper(
             example_joiner_options.join_key_mapper)
@@ -392,7 +396,7 @@ class UniversalJoiner(ExampleJoiner):
         self._joiner = _JoinerImpl(self._expr)
 
         self._enable_negative_example_generator = \
-                example_joiner_options.enable_negative_example_generator
+                    example_joiner_options.enable_negative_example_generator
         if self._enable_negative_example_generator:
             sf = example_joiner_options.negative_sampling_rate
             fe = example_joiner_options.negative_sampling_filter_expr
@@ -406,14 +410,14 @@ class UniversalJoiner(ExampleJoiner):
         if self.is_join_finished():
             return
         sync_example_id_finished, raw_data_finished = \
-                self._prepare_join(state_stale)
+                    self._prepare_join(state_stale)
         join_data_finished = False
 
         while True:
             fill_leader_enough = self._fill_leader_join_window(
                 sync_example_id_finished)
             leader_exhausted = sync_example_id_finished and                    \
-                    not self._leader_join_window.is_full()
+                        not self._leader_join_window.is_full()
             follower_exhausted = False
             logging.info('Fill leader_exhausted: %s, sync_example_id_finished '
                          '%s, raw_data_finished %s, leader_win_size %d, '
@@ -423,7 +427,7 @@ class UniversalJoiner(ExampleJoiner):
                          self._follower_join_window.size(), raw_data_finished)
             while self._fill_follower_join_window(raw_data_finished):
                 follower_exhausted = raw_data_finished and \
-                        not self._follower_join_window.is_full()
+                            not self._follower_join_window.is_full()
 
                 logging.info("Fill: follower_exhausted=%s, "
                              "follower_win_size=%d", follower_exhausted,
@@ -442,8 +446,7 @@ class UniversalJoiner(ExampleJoiner):
                 pairs = self._update_matching_pairs(raw_pairs, watermark)
                 #3. push the result into builder
                 if len(pairs) > 0:
-                    for meta in self._dump_joined_items(pairs):
-                        yield meta
+                    yield from self._dump_joined_items(pairs)
                     self._leader_restart_index = pairs[len(pairs) - 1].li
                     self._follower_restart_index = pairs[len(pairs) - 1].fi
                 logging.info("Restart index of leader %d, follwer %d,"
@@ -482,7 +485,7 @@ class UniversalJoiner(ExampleJoiner):
                 break
 
         if self._get_data_block_builder(False) is not None and \
-                (self._need_finish_data_block_since_interval() or
+                    (self._need_finish_data_block_since_interval() or
                     join_data_finished):
             yield self._finish_data_block()
         if join_data_finished:
@@ -498,9 +501,9 @@ class UniversalJoiner(ExampleJoiner):
         for (cid, sid) in raw_pairs:
             #fi: follower index, fe: follower example
             assert cid < self._follower_join_window.size(), \
-                    "Leader index[%d] out of range"%cid
+                        "Leader index[%d] out of range"%cid
             assert sid < self._leader_join_window.size(), \
-                    "Follower index[%d] out of range"%(sid)
+                        "Follower index[%d] out of range"%(sid)
 
             example_with_index = self._follower_join_window[cid]
             fi, fe = example_with_index.index, example_with_index.item
@@ -514,7 +517,7 @@ class UniversalJoiner(ExampleJoiner):
                 continue
 
             if abs(fcc.time_diff(fe.event_time, le.event_time)) > \
-               self._max_watermark_delay:
+                   self._max_watermark_delay:
                 ### unreachable branch
                 logging.info('Pair %s:%s out-of-delay, leader et %d, '
                              'follower et %d', le.example_id, fe.example_id,
@@ -529,11 +532,11 @@ class UniversalJoiner(ExampleJoiner):
                     self._dedup_by_follower_index[fi].event_time, le.event_time)
                 if abs(old_conv_int) > abs(new_conv_int):
                     self._dedup_by_follower_index[fi] = \
-                            IndexedTime(li, le.event_time)
+                                IndexedTime(li, le.event_time)
                     updated = True
             else:
                 self._dedup_by_follower_index[fi] = \
-                        IndexedTime(li, le.event_time)
+                            IndexedTime(li, le.event_time)
                 updated = True
             # sort by leader index
             if not updated:
@@ -553,8 +556,8 @@ class UniversalJoiner(ExampleJoiner):
                     del self._dedup_by_follower_index[ip.fi]
                 else:
                     logging.info("Example %s matching leader index %s is"   \
-                                 " older than %d", ip.fe.example_id,        \
-                                 ip.li, indexed_time.li)
+                                     " older than %d", ip.fe.example_id,        \
+                                     ip.li, indexed_time.li)
             else:
                 self._leader_index_ps.put(ip)
                 logging.info('Break dumping, event time %s, watermark %s',
@@ -614,7 +617,7 @@ class UniversalJoiner(ExampleJoiner):
 
         self._joiner_stats.fill_leader_example_ids(eids)
         metrics.emit_timer(name=\
-                           'universal_joiner_fill_leader_join_window',
+                               'universal_joiner_fill_leader_join_window',
                            value=int(time.time()-start_tm),
                            tags=self._metrics_tags)
         return filled_enough

@@ -178,8 +178,7 @@ def extract_field(field_names, field_name, required):
     if field_name in field_names:
         return []
 
-    assert not required, \
-        "Field %s is required but missing in data"%field_name
+    assert not required, f"Field {field_name} is required but missing in data"
     return None
 
 
@@ -208,19 +207,26 @@ def read_data(file_type, filename, require_example_ids, require_labels,
     ignore_fields.update(['example_id', 'raw_id', label_field])
     cat_fields = set(filter(bool, cat_fields.strip().split(',')))
     for name in cat_fields:
-        assert name in field_names, "cat_field %s missing"%name
+        assert name in field_names, f"cat_field {name} missing"
 
-    cont_columns = list(filter(
-        lambda x: x not in ignore_fields and x not in cat_fields, field_names))
-    cont_columns.sort()
-    cat_columns = list(filter(
-        lambda x: x in cat_fields and x not in ignore_fields, field_names))
-    cat_columns.sort()
+    cont_columns = sorted(
+        filter(
+            lambda x: x not in ignore_fields and x not in cat_fields,
+            field_names,
+        )
+    )
+
+    cat_columns = sorted(
+        filter(
+            lambda x: x in cat_fields and x not in ignore_fields, field_names
+        )
+    )
 
     features = []
     cat_features = []
     def to_float(x):
         return float(x if x != '' else 'nan')
+
     for line in reader:
         if file_type == 'tfrecord':
             line = parse_tfrecord(line)
@@ -275,12 +281,14 @@ def read_data_dir(file_ext, file_type, path, require_example_ids,
             example_ids = iexample_ids
             raw_ids = iraw_ids
         else:
-            assert cont_columns == icont_columns, \
-                "columns mismatch between files %s vs %s"%(
-                    cont_columns, icont_columns)
-            assert cat_columns == icat_columns, \
-                "columns mismatch between files %s vs %s"%(
-                    cat_columns, icat_columns)
+            assert (
+                cont_columns == icont_columns
+            ), f"columns mismatch between files {cont_columns} vs {icont_columns}"
+
+            assert (
+                cat_columns == icat_columns
+            ), f"columns mismatch between files {cat_columns} vs {icat_columns}"
+
             features = np.concatenate((features, ifeatures), axis=0)
             cat_features = np.concatenate(
                 (cat_features, icat_features), axis=0)
@@ -291,7 +299,7 @@ def read_data_dir(file_ext, file_type, path, require_example_ids,
             if raw_ids is not None:
                 raw_ids.extend(iraw_ids)
 
-    assert features is not None, "No data found in %s"%path
+    assert features is not None, f"No data found in {path}"
 
     return features, cat_features, cont_columns, cat_columns, \
         labels, example_ids, raw_ids
@@ -350,14 +358,14 @@ def write_predictions(filename, pred, example_ids=None, raw_ids=None):
     lines.append(pred)
     lines = zip(*lines)
 
-    fout = tf.io.gfile.GFile(filename+'.tmp', 'w')
+    fout = tf.io.gfile.GFile(f'{filename}.tmp', 'w')
     fout.write(','.join(headers) + '\n')
     for line in lines:
         fout.write(','.join([str(i) for i in line]) + '\n')
     fout.close()
 
     logging.debug("Renaming %s.tmp to %s", filename, filename)
-    tf.io.gfile.rename(filename+'.tmp', filename, overwrite=True)
+    tf.io.gfile.rename(f'{filename}.tmp', filename, overwrite=True)
 
 def test_one_file(args, bridge, booster, data_file, output_file):
     if data_file is None:
@@ -466,12 +474,11 @@ class DataBlockLoader(object):
         if self._tm_role == 'leader':
             while True:
                 block = self._request_data_block()
-                if block is not None:
-                    if not self._bridge.load_data_block(
-                            self._count, block.block_id):
-                        continue
-                else:
+                if block is None:
                     self._bridge.load_data_block(self._count, '')
+                elif not self._bridge.load_data_block(
+                            self._count, block.block_id):
+                    continue
                 break
             self._count += 1
         else:

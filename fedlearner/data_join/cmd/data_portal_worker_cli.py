@@ -70,10 +70,12 @@ if __name__ == '__main__':
         import tensorflow
         tensorflow.compat.v1.enable_eager_execution()
 
-    optional_fields = list(
-        field for field in map(str.strip, args.optional_fields.split(','))
+    optional_fields = [
+        field
+        for field in map(str.strip, args.optional_fields.split(','))
         if field != ''
-    )
+    ]
+
 
     portal_worker_options = dp_pb.DataPortalWorkerOptions(
         raw_data_options=dj_pb.RawDataOptions(

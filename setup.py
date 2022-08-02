@@ -10,9 +10,9 @@ with open('requirements.txt') as f:
     required = f.read().splitlines()
 
 def get_version():
-    base = "1.5"
-    day = time.strftime('%Y%m%d', time.localtime())
-    return '%s-dev%s'%(base, day)
+  base = "1.5"
+  day = time.strftime('%Y%m%d', time.localtime())
+  return f'{base}-dev{day}'
 
 setup(
     name='fedlearner',

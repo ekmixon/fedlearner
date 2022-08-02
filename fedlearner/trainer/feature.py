@@ -36,8 +36,7 @@ class FeatureSlice(object):
         self._end = begin + length
 
     def __repr__(self):
-        return '[FeatureSlice][slot-{}][{}-{}]'.format(
-                self._feature_slot.slot_id, self._begin, self._end)
+        return f'[FeatureSlice][slot-{self._feature_slot.slot_id}][{self._begin}-{self._end}]'
 
     def __hash__(self):
         return hash((self._feature_slot.slot_id, self._begin, self._end))
@@ -97,19 +96,19 @@ class FeatureSlot(object):
                to set a global default"
 
         self._bias_initializer = bias_initializer or \
-                                 FeatureSlot._default_bias_initializer
+                                     FeatureSlot._default_bias_initializer
         assert self._bias_initializer is not None, \
-               msg.format(n='bias_initializer')
+                   msg.format(n='bias_initializer')
 
         self._bias_optimizer = bias_optimizer or \
-                               FeatureSlot._default_bias_optimizer
+                                   FeatureSlot._default_bias_optimizer
         assert self._bias_optimizer is not None, \
-               msg.format(n='bias_optimizer')
+                   msg.format(n='bias_optimizer')
 
         self._vec_initializer = vec_initializer or \
-                                FeatureSlot._default_vec_initializer
+                                    FeatureSlot._default_vec_initializer
         self._vec_optimizer = vec_optimizer or \
-                              FeatureSlot._default_vec_optimizer
+                                  FeatureSlot._default_vec_optimizer
 
         self._feature_dim = 0
         self._slices = []
